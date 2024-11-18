@@ -8,8 +8,11 @@
 #include <sstream>
 #include <math.h>
 
-std::vector<size_t> optimize_indexes(size_t n, int (*distance)(size_t, size_t)){
+template <typename kmer_t>
+std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*distance)(const std::vector<kmer_t>&, size_t, size_t, size_t), size_t k){
     try {
+        const size_t n = kmers.size();
+
         // n k-mers + 1 s_0
         GRBEnv env = GRBEnv();
         GRBModel model = GRBModel(env);
@@ -24,7 +27,7 @@ std::vector<size_t> optimize_indexes(size_t n, int (*distance)(size_t, size_t)){
                 if (i > n || j > n)
                     edges[i][j] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
                 else
-                    edges[i][j] = model.addVar(0.0, 1.0, distance(i, j), GRB_BINARY, name);
+                    edges[i][j] = model.addVar(0.0, 1.0, distance(kmers, k, i, j), GRB_BINARY, name);
             }
         }
         // Edge constraints
@@ -80,5 +83,6 @@ std::vector<size_t> optimize_indexes(size_t n, int (*distance)(size_t, size_t)){
     }
     catch(GRBException e){
         std::cout << e.getErrorCode() << std::endl << e.getMessage() << std::endl;
+        return std::vector<size_t>();
     }
 }

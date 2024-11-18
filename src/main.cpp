@@ -12,6 +12,8 @@
 #include "ac/streaming.h"
 #include "khash_utils.h"
 
+#include "ilp/global_ilp.h"
+
 #include <iostream>
 #include <string>
 #include "unistd.h"
@@ -63,6 +65,8 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         return ret;
     }
 
+    std::cout << algorithm << std::endl;
+
     /* Handle streaming algorithm separately. */
     if (algorithm == "streaming") {
         WriteName(k, *of);
@@ -88,6 +92,12 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
             else Global(wrapper, kMerVec, *of, k, complements);
         }
         else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
+    } else if (algorithm == "ILP") {
+        auto *kMers = wrapper.kh_init_set();
+        ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
+        std::vector<kmer_t> kMersVec = kMersToVec(kMers, kmer_type);
+        
+        GlobalILP(kMersVec, *of, k);
     } else {
         auto data = ReadFasta(path);
         if (data.empty()) {
