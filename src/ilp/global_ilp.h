@@ -17,7 +17,9 @@
 
 template <typename kmer_t>
 void GlobalILP(std::vector<kmer_t> kMers, std::ostream& of, size_t k) {
-	if (kMers.empty()) {
+	of << k << " " << kMers.size() << std::endl;
+
+    if (kMers.empty()) {
 		throw std::invalid_argument("input cannot be empty");
 	}
     /*size_t n = kMers.size();
