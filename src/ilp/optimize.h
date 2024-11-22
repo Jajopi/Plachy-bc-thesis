@@ -17,8 +17,6 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
         GRBEnv env = GRBEnv();
         GRBModel model = GRBModel(env);
 
-        std::cout << "Gurobi env + model created" << std::endl;
-
         // Edge variables
         GRBVar edges[n + 1][n + 1];
         for (size_t i = 0; i < n + 1; i++){
@@ -56,8 +54,6 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
             model.addConstr(indegree == 1.0, name);
         }
         
-        std::cout << "Edge constraints created" << std::endl;
-
         // Index variables (u)
         GRBVar indexes[n + 1];
         for (size_t i = 0; i < n + 1; i++){
@@ -76,20 +72,13 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
             }
         }
 
-        std::cout << "Index constraints created" << std::endl;
-
-        // Does it minimize?
         model.optimize();
-
-        std::cout << "Optimization performed" << std::endl;
 
         std::vector<size_t> optimized_indexes(n);
         for (size_t i = 0; i < n; i++){
-            optimized_indexes[i] = round(indexes[i].get(GRB_DoubleAttr_X));
+            optimized_indexes[round(indexes[i].get(GRB_DoubleAttr_X))] = i;
         }
         
-        std::cout << "Indexes retreived" << std::endl;
-
         return optimized_indexes;
     }
     catch(GRBException e){

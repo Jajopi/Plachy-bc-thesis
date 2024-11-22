@@ -114,3 +114,10 @@ std::string NumberToKMer(kmer_t encoded, int length) {
     }
     return ret;
 }
+
+template <typename kmer_t>
+void print_kmer(kmer_t kmer, size_t k, std::ostream& os = std::cout){
+    for (size_t c = 0; c < k; ++c){
+        os << NucleotideAtIndex(kmer, k, c);
+    }
+}
