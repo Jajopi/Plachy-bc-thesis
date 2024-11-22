@@ -1,6 +1,4 @@
 
-#define kmer long long
-
 #define GUROBI_DIR "/opt/gurobi1103/linux64/include/gurobi_c++.h"
 
 #include GUROBI_DIR
@@ -13,9 +11,13 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
     try {
         const size_t n = kmers.size();
 
+        std::cout << n << std::endl;
+
         // n k-mers + 1 s_0
         GRBEnv env = GRBEnv();
         GRBModel model = GRBModel(env);
+
+        std::cout << "Gurobi env + model created" << std::endl;
 
         // Edge variables
         GRBVar edges[n + 1][n + 1];
@@ -24,7 +26,7 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
                 if (i == j) continue;
 
                 std::string name = "Edge_" + std::to_string(i) + "_" + std::to_string(j);
-                if (i > n || j > n)
+                if (i == n || j == n)
                     edges[i][j] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
                 else
                     edges[i][j] = model.addVar(0.0, 1.0, distance(kmers, k, i, j), GRB_BINARY, name);
@@ -53,6 +55,8 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
             std::string name = "InDegree_" + std::to_string(j);
             model.addConstr(indegree == 1.0, name);
         }
+        
+        std::cout << "Edge constraints created" << std::endl;
 
         // Index variables (u)
         GRBVar indexes[n + 1];
@@ -72,13 +76,20 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
             }
         }
 
+        std::cout << "Index constraints created" << std::endl;
+
         // Does it minimize?
         model.optimize();
+
+        std::cout << "Optimization performed" << std::endl;
 
         std::vector<size_t> optimized_indexes(n);
         for (size_t i = 0; i < n; i++){
             optimized_indexes[i] = round(indexes[i].get(GRB_DoubleAttr_X));
         }
+        
+        std::cout << "Indexes retreived" << std::endl;
+
         return optimized_indexes;
     }
     catch(GRBException e){
