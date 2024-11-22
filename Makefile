@@ -1,8 +1,8 @@
 .PHONY: all clean test cpptest converttest verify quick-verify
 
 CXX=         g++
-CXXFLAGS=    -g -Wall -Wno-unused-function -std=c++17 -O2 -I/opt/homebrew/include -L/opt/gurobi1103/linux64/lib/ -l:libgurobi_c++.a -l:libgurobi110.so
-LDFLAGS=     -lz -lglpk -L/opt/homebrew/lib
+CXXFLAGS=    -g -Wall -Wno-unused-function -std=c++17 -O2 -I/opt/homebrew/include
+LDFLAGS=     -lz -lglpk -L/opt/homebrew/lib -L/opt/gurobi1103/linux64/lib/ -l:libgurobi_c++.a -l:libgurobi110.so
 LARGEFLAGS=  -DLARGE_KMERS
 ELARGEFLAGS=  -DEXTRA_LARGE_KMERS
 SRC=         src
