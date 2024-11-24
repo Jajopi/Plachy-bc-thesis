@@ -14,14 +14,17 @@
 
 template<typename kmer_t>
 size_t compute_overlap(kmer_t kmer1, kmer_t kmer2, size_t k){
-    for (size_t ov = 1; ov <= k; ++ov){
+    for (size_t ov = k; ov > 0; --ov){
+        bool found = true;
         for (size_t i = 0; i < ov; ++i){
             if (NucleotideAtIndex(kmer2, k, i) != NucleotideAtIndex(kmer1, k, k - ov + i)){
-                return ov - 1;
+                found = false;
+                break;
             }
         }
+        if (found) return ov;
     }
-    return k;
+    return 0;
 }
 
 template <typename kmer_t>
