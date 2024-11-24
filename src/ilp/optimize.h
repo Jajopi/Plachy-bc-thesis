@@ -1,5 +1,6 @@
 
 #define GUROBI_DIR "/opt/gurobi1103/linux64/include/gurobi_c++.h"
+#define MEMORY_LIMIT_GB 16
 
 #include GUROBI_DIR
 #include <vector>
@@ -9,17 +10,22 @@
 template <typename kmer_t>
 std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*distance)(const std::vector<kmer_t>&, size_t, size_t, size_t), size_t k){
     try {
+        // n k-mers + 1 s_0 node = n + 1 nodes
         const size_t n = kmers.size();
 
-        std::cout << n << std::endl;
-
-        // n k-mers + 1 s_0
+        // Creating model
         GRBEnv env = GRBEnv();
         GRBModel model = GRBModel(env);
 
+        // Setting model parameters
+        model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_OFF); // seems to not help in this case
+        model.set(GRB_IntParam_Method, GRB_METHOD_BARRIER); // consumes less memory than concurent, barrier seems to be the best algortihm for this case
+        //model.set(GRB_DoubleParam_MemLimit, MEMORY_LIMIT_GB); // prevents the computer from freezing
+
         // Edge variables
-        GRBVar edges[n + 1][n + 1];
+        GRBVar** edges = new GRBVar*[n + 1];
         for (size_t i = 0; i < n + 1; i++){
+            edges[i] = new GRBVar[n + 1];
             for (size_t j = 0; j < n + 1; j++){
                 if (i == j) continue;
 
@@ -55,7 +61,7 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
         }
         
         // Index variables (u)
-        GRBVar indexes[n + 1];
+        GRBVar* indexes = new GRBVar[n + 1];
         for (size_t i = 0; i < n + 1; i++){
             std::string name = "Index_" + std::to_string(i);
             indexes[i] = model.addVar(0.0, n, 0.0, GRB_INTEGER, name);
@@ -72,6 +78,12 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
             }
         }
 
+        // Free memory from edges
+        for (size_t i = 0; i < n + 1; ++i){
+            delete [] edges[i];
+        }
+        delete [] edges;
+
         model.optimize();
 
         std::vector<size_t> optimized_indexes(n);
@@ -79,6 +91,9 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kmers, int (*dis
             optimized_indexes[round(indexes[i].get(GRB_DoubleAttr_X))] = i;
         }
         
+        // Free memory from indexes
+        delete [] indexes;
+
         return optimized_indexes;
     }
     catch(GRBException e){

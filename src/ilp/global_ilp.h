@@ -17,8 +17,6 @@
 
 template <typename kmer_t>
 void GlobalILP(std::vector<kmer_t> kMers, std::ostream& of, size_t k) {
-	of << k << " " << kMers.size() << std::endl;
-
     if (kMers.empty()) {
 		throw std::invalid_argument("input cannot be empty");
 	}
@@ -31,7 +29,7 @@ void GlobalILP(std::vector<kmer_t> kMers, std::ostream& of, size_t k) {
 
     std::vector<size_t> indexes = optimize_indexes(kMers, trivial_distance, k);
 
-    for (auto index : indexes){
+    /*for (auto index : indexes){
         std::cout << index << " ";
     }
     std::cout << std::endl;
@@ -40,7 +38,7 @@ void GlobalILP(std::vector<kmer_t> kMers, std::ostream& of, size_t k) {
         print_kmer(kMers[indexes[i]], k);
         std::cout << " ";
     }
-    std::cout << std::endl;
+    std::cout << std::endl;*/
 
     size_t total_length = 0;
     kmer_t actual_kmer = kMers[indexes[0]];
@@ -50,6 +48,7 @@ void GlobalILP(std::vector<kmer_t> kMers, std::ostream& of, size_t k) {
     }
     kmer_t last_kmer;
     for (size_t i = 1; i < indexes.size(); ++i){
+        //of << "_";
         last_kmer = actual_kmer;
         actual_kmer = kMers[indexes[i]];
 
