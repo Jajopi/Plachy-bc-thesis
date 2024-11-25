@@ -1,1 +1,0 @@
-#define VERSION "v1.0.2-4-ga3f6"

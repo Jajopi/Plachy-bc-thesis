@@ -16,51 +16,45 @@
 #include "distance_functions.h"
 
 template <typename kmer_t>
-void GlobalILP(std::vector<kmer_t> kMers, std::ostream& of, size_t k) {
+size_t decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vector<size_t>& indexes, std::ostream& os, size_t k/*, bool encode_mask = false*/){
+    size_t total_length = 0;
+    
+    kmer_t actual_kmer = kMers[indexes[0]], new_kmer = kMers[indexes[1]];
+    for (size_t i = 1; i < indexes.size(); ++i){
+        new_kmer = kMers[indexes[i]];
+        
+        size_t ov = compute_max_overlap(actual_kmer, new_kmer, k);
+        print_kmer(actual_kmer, k, os, k - ov);
+        total_length += k - ov;
+
+        actual_kmer = new_kmer;
+    }
+    print_kmer(new_kmer, k, os);
+    total_length += k;
+
+    return total_length;
+}
+
+template <typename kmer_t>
+void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
     if (kMers.empty()) {
 		throw std::invalid_argument("input cannot be empty");
 	}
-    /*size_t n = kMers.size();
+    
     // Add complementary k-mers.
+    size_t n = kMers.size();
     kMers.resize(n * (1 + complements));
-    if (complements) for (size_t i = 0; i < n; ++i) {
-        kMers[i + n] = ReverseComplement(kMers[i]);
-    }*/
-
-    std::vector<size_t> indexes = optimize_indexes(kMers, trivial_distance, k);
-
-    /*for (auto index : indexes){
-        std::cout << index << " ";
-    }
-    std::cout << std::endl;
-
-    for (size_t i = 0; i < indexes.size(); ++i){
-        print_kmer(kMers[indexes[i]], k);
-        std::cout << " ";
-    }
-    std::cout << std::endl;*/
-
-    size_t total_length = 0;
-    kmer_t actual_kmer = kMers[indexes[0]];
-    for (size_t c = 0; c < k; c++){
-        of << NucleotideAtIndex(actual_kmer, k, c);
-        total_length++;
-    }
-    kmer_t last_kmer;
-    for (size_t i = 1; i < indexes.size(); ++i){
-        //of << "_";
-        last_kmer = actual_kmer;
-        actual_kmer = kMers[indexes[i]];
-
-        size_t ov = compute_overlap(last_kmer, actual_kmer, k);
-
-        for (size_t c = ov; c < k; ++c){
-            of << NucleotideAtIndex(actual_kmer, k, c);
-            total_length++;
+    if (complements){
+        for (size_t i = 0; i < n; ++i) {
+            kMers[i + n] = ReverseComplement(kMers[i], k);
         }
     }
-    of << std::endl;
 
+    std::vector<size_t> indexes = optimize_indexes(kMers, trivial_distance, k, complements);
+
+    size_t total_length = decode_and_print_indexes(kMers, indexes, os, k/*, true*/);
+    os << std::endl;
+    
     std::cout << total_length << " / " << kMers.size() * k << std::endl;
 }
 

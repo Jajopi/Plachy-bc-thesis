@@ -115,9 +115,21 @@ std::string NumberToKMer(kmer_t encoded, int length) {
     return ret;
 }
 
+char to_lower(char c){
+    if (c >= 'a') return c;
+    return c + 32;
+}
+char to_upper(char c){
+    if (c >= 'a') return c - 32;
+    return c;
+}
+
 template <typename kmer_t>
-void print_kmer(kmer_t kmer, size_t k, std::ostream& os = std::cout){
-    for (size_t c = 0; c < k; ++c){
-        os << NucleotideAtIndex(kmer, k, c);
+void print_kmer(kmer_t kmer, size_t k, std::ostream& os, size_t prefix = 0){
+    if (prefix == 0 || prefix > k) prefix = k;
+
+    os << to_upper(NucleotideAtIndex(kmer, k, 0));
+    for (size_t c = 1; c < prefix; ++c){
+        os << to_lower(NucleotideAtIndex(kmer, k, c));
     }
 }
