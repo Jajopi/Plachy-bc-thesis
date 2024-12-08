@@ -11,7 +11,7 @@
 template <typename kmer_t>
 std::vector<size_t> optimize_indexes_with_complements(const std::vector<kmer_t>& kMers,
         int (*distance)(const std::vector<kmer_t>&, size_t, size_t, size_t),
-        size_t k){
+        size_t k, size_t lower_bound){
     try {
         // 2 n k-mers + 1 s_0 node = 2n + 1 nodes
         // each node has its reverse complement on position + n
@@ -27,6 +27,10 @@ std::vector<size_t> optimize_indexes_with_complements(const std::vector<kmer_t>&
         model.set(GRB_IntParam_Method, GRB_METHOD_BARRIER); // consumes less memory than concurent, barrier seems to be the best algortihm for this case
         //model.set(GRB_DoubleParam_MemLimit, MEMORY_LIMIT_GB); // prevents the computer from freezing, maybe?
         //model.set(GRB_IntParam_Threads, THREAD_COUNT); // less threads use less memory, barrier seems to never use more than one anyway
+        //model.set(GRB_DoubleParam_Heuristics, 0.1);
+        //model.set(GRB_DoubleParam_NoRelHeurTime, lower_bound / 5);
+        model.set(GRB_DoubleParam_BestObjStop, lower_bound - k + 0.1);
+        model.set(GRB_IntParam_MIPFocus, 1);
 
         // Edge variables
         GRBVar** edges = new GRBVar*[nn + 1];
@@ -99,7 +103,7 @@ std::vector<size_t> optimize_indexes_with_complements(const std::vector<kmer_t>&
         
         // Index variables (u)
         GRBVar* indexes = new GRBVar[n + 1];
-        for (size_t i = 0; i < n; i++){
+        for (size_t i = 0; i < n + 1; i++){
             std::string name = "Index_" + std::to_string(i);
             indexes[i] = model.addVar(0.0, n, 0.0, GRB_INTEGER, name);
         }
@@ -116,6 +120,11 @@ std::vector<size_t> optimize_indexes_with_complements(const std::vector<kmer_t>&
                 std::string name = "IndexDiff_" + std::to_string(i) + "_" + std::to_string(j);
                 model.addConstr(difference <= 0.0, name);
             }
+
+            GRBLinExpr difference = indexes[i] - indexes[n] +
+                1 - n + n * (edges[i][nn] + edges[i + n][nn]);
+            std::string name = "IndexDiff_" + std::to_string(i) + "_" + std::to_string(nn);
+            model.addConstr(difference <= 0.0, name);
         }
 
 
@@ -174,9 +183,9 @@ std::vector<size_t> optimize_indexes_with_complements(const std::vector<kmer_t>&
 template <typename kmer_t>
 std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kMers,
         int (*distance)(const std::vector<kmer_t>&, size_t, size_t, size_t),
-        size_t k, bool complements = false){
+        size_t k, bool complements = false, size_t lower_bound = 0){
     if (complements){
-        return optimize_indexes_with_complements(kMers, distance, k);
+        return optimize_indexes_with_complements(kMers, distance, k, lower_bound);
     }
     try {
         // n k-mers + 1 s_0 node = n + 1 nodes
@@ -239,7 +248,7 @@ std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kMers,
         // Index constraints
         // Indexes ascend
         for (size_t i = 0; i < n; i++){
-            for (size_t j = 0; j < n; j++){
+            for (size_t j = 0; j < n + 1; j++){
                 if (i == j) continue;
 
                 GRBLinExpr difference = indexes[i] - indexes[j] + 1 - n + (n * edges[i][j]);

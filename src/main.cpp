@@ -95,9 +95,10 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
     } else if (algorithm == "ILP" || algorithm == "ilp") {
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
-        std::vector<kmer_t> kMersVec = kMersToVec(kMers, kmer_type);
+        std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
+        size_t lower_bound = LowerBoundLength(wrapper, kMerVec, k, complements);
         
-        GlobalILP(kMersVec, *of, k, complements);
+        GlobalILP(kMerVec, *of, k, complements, lower_bound);
     } else {
         auto data = ReadFasta(path);
         if (data.empty()) {
