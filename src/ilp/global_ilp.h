@@ -36,7 +36,7 @@ size_t decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vec
 }
 
 template <typename kmer_t>
-void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
+void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements, size_t lower_bound = 0) {
     if (kMers.empty()) {
 		throw std::invalid_argument("input cannot be empty");
 	}
@@ -50,7 +50,7 @@ void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool comp
         }
     }
 
-    std::vector<size_t> indexes = optimize_indexes(kMers, trivial_distance, k, complements);
+    std::vector<size_t> indexes = optimize_indexes(kMers, trivial_distance, k, complements, lower_bound);
 
     size_t total_length = decode_and_print_indexes(kMers, indexes, os, k/*, true*/);
     os << std::endl;
