@@ -64,7 +64,7 @@ struct Node {
 };
 
 template <typename kmer_t, typename size_t_max>
-struct HOGConstructer {
+class HOGConstructer {
     std::vector<kmer_t>& kMers;
     std::vector<Node<size_t_max>> nodes;
     std::vector<size_t_max> leaves;
@@ -72,23 +72,25 @@ struct HOGConstructer {
     size_t_max k;
     size_t_max n;
 
-    //constexpr size_t_max INVALID_NODE = std::numeric_limits<size_t_max>::max();
-    //static bool is_node_valid(size_t_max node_index) { return node_index != INVALID_NODE};
-
-    uint8_t get_edge_nucleotide(size_t_max child_index){
+    inline uint8_t get_edge_nucleotide(size_t_max child_index){
         return NucleotideIndexAtIndex(kMers[nodes[child_index].kmer_index], k, nodes[child_index].depth);
     }
-
-    HOGConstructer(size_t_max k) :
-        k(k), n(0) {};
-    HOGConstructer(size_t_max k, std::vector<kmer_t>& kMers) :
-        k(k), kMers(kMers), n(kMers.size()) {};
-
     void remove_redundant_edges(std::vector<bool>& keep);
+public:
+    /*HOGConstructer(size_t_max k) :
+        k(k), n(0) {};*/
+    HOGConstructer(std::vector<kmer_t>& kMers, size_t_max k) :
+        k(k), kMers(kMers), n(kMers.size()) {};
 
     void construct_AC();
     void convert_AC_to_EHOG();
     void convert_EHOG_to_HOG();
+    
+    inline void create() {
+        construct_AC();
+        convert_AC_to_EHOG();
+        convert_EHOG_to_HOG();
+    }
 };
 
 
