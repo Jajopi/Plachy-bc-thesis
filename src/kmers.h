@@ -104,7 +104,7 @@ inline char NucleotideAtIndex(kmer_t encoded, int k, int index) {
 
 /// Return the number 0 - 3 correcponding to index-th nucleotide from the encoded k-mer.
 template <typename kmer_t>
-inline short NucleotideIndexAtIndex(kmer_t encoded, int k, int index) {
+inline uint8_t NucleotideIndexAtIndex(kmer_t encoded, int k, int index) {
     return (uint64_t)((encoded >> ((k - index - kmer_t(1)) << kmer_t(1))) & kmer_t(3));
 }
 
