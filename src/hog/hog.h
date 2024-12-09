@@ -58,10 +58,20 @@ struct Node {
     size_t_max failure;
     std::vector<size_t_max> children;
 
-    Node(size_t_max kmer_index, size_t_max depth, size_t_max index, size_t_max parent) :
-        kmer_index(kmer_index), depth(depth), index(index), parent(parent),
-        failure(0), has_child({false, false, false, false}, children(4)) {};
+    Node(size_t_max kmer_index, size_t_max depth, /*size_t_max index,*/ size_t_max parent) :
+        kmer_index(kmer_index), /*index(index),*/ depth(depth), parent(parent),
+        failure(0) { print(std::cout); std::cout << std::endl; };
+    Node() { throw std::invalid_argument("Creating empty node"); };
+
+    void print(std::ostream& os) const;
 };
+
+template <typename size_t_max>
+inline void Node<size_t_max>::print(std::ostream &os) const {
+    os << depth << '/' << kmer_index << ", P: " << parent << ", F: " << failure << ", CH: [ ";
+    for (auto child : children) os << child << ' ';
+    os << ']';
+}
 
 template <typename kmer_t, typename size_t_max>
 class HOGConstructer {
@@ -73,24 +83,30 @@ class HOGConstructer {
     size_t_max n;
 
     inline uint8_t get_edge_nucleotide(size_t_max child_index){
-        return NucleotideIndexAtIndex(kMers[nodes[child_index].kmer_index], k, nodes[child_index].depth);
+        return NucleotideIndexAtIndex(kMers[nodes[child_index].kmer_index], k, nodes[child_index].depth - 1);
     }
     void remove_redundant_edges(std::vector<bool>& keep);
 public:
     /*HOGConstructer(size_t_max k) :
         k(k), n(0) {};*/
     HOGConstructer(std::vector<kmer_t>& kMers, size_t_max k) :
-        k(k), kMers(kMers), n(kMers.size()) {};
+        kMers(kMers), k(k), n(kMers.size()) {};
 
     void construct_AC();
     void convert_AC_to_EHOG();
     void convert_EHOG_to_HOG();
     
     inline void create() {
+        std::cout << "Constructing AC..." << std::endl;
         construct_AC();
+        std::cout << "Converting to EHOG..." << std::endl;
         convert_AC_to_EHOG();
+        std::cout << "Converting to HOG..." << std::endl;
         convert_EHOG_to_HOG();
+        std::cout << "Done..." << std::endl;
     }
+
+    void print(std::ostream& os = std::cout);
 };
 
 
@@ -136,31 +152,42 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC()
     if (!nodes.empty()) throw std::invalid_argument("AC has already been constructed");
 
     // Add nodes and forward edges
-    nodes.resize(n); // TODO better guess
-    nodes.emplace_back<Node<size_t_max>>(0, 0, 0, 0);
+    //nodes.resize(n); // TODO better guess
+    nodes.emplace_back(0, 0, /*0,*/ 0);
     size_t_max node_count = 1;
 
     leaves.resize(n);
 
-    std::vector<bool> has_basic_child(4 * node_count, false);
+    std::vector<bool> has_basic_child(4, false);
 
     for (size_t_max kmer_index = 0; kmer_index < n; ++kmer_index){
         size_t_max node_index = 0;
-        for (size_t_max pos = 0; pos < k; ++pos){
-            uint8_t nucleotide_index = NucleotideIndexAtIndex(kMers[kmer_index], k, pos);
-            if (has_basic_child[nodes[node_index] * 4 + nucleotide_index]){
-                // Position of new node = node count
-                nodes.emplace_back<Node<size_t_max>>(kmer_index, pos + 1, node_count, node_index);
+        for (size_t_max depth = 0; depth < k; ++depth){
+            uint8_t nucleotide_index = NucleotideIndexAtIndex(kMers[kmer_index], k, depth);
+            std::cout << NucleotideAtIndex(kMers[kmer_index], k, depth) << ": ";
+            if (has_basic_child[node_index * 4 + nucleotide_index]){
+                for (size_t_max child : nodes[node_index].children){
+                    if (get_edge_nucleotide(child) == nucleotide_index){
+                        node_index = nodes[node_index].children[nucleotide_index];
+                        std::cout << depth << '/' << kmer_index << "->" << node_index << std::endl;
+                        break;
+                    }
+                }
+            }
+            else {
+                // Index of new node = node count
+                nodes.emplace_back(kmer_index, depth + 1, /*node_count,*/ node_index);
+                for (auto ii = 0; ii < 4; ++ii) has_basic_child.push_back(false);
                 // Add new child to parent
                 nodes[node_index].children.push_back(node_count);
-                has_basic_child[nodes[node_index] * 4 + get_edge_nucleotide(node_count)] = true;
+                std::cout << "+ "; nodes[node_index].print(std::cout); std::cout << std::endl;
+                has_basic_child[node_index * 4 + get_edge_nucleotide(node_count)] = true;
                 // Increase node count
                 node_count++;
 
                 // Next step
                 node_index = node_count - 1;
             }
-            else node_index = nodes[node_index].children[nucleotide_index];
         }
         leaves.push_back(node_index);
     }
@@ -176,6 +203,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC()
 
     while (!queue.empty()){
         size_t_max index = queue.front();
+        std::cout << index << std:: endl;
         queue.pop();
 
         // Add FL to all children of nodes[index]
@@ -184,7 +212,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC()
 
             // Search for first node with valid goto edge
             size_t_max failure_index = nodes[index].failure;
-            while(!has_basic_child[nodes[failure_index] * 4 + goto_char])
+            while(!has_basic_child[failure_index * 4 + goto_char])
                 failure_index = nodes[failure_index].failure;
 
             // Find its child with right edge
@@ -210,7 +238,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC()
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
-    if (nodes.empty) throw std::invalid_argument("Cannot convert empty AC to EHOG");
+    if (nodes.empty()) throw std::invalid_argument("Cannot convert empty AC to EHOG");
 
     // Mark nodes to be keeped
     size_t_max node_count = nodes.size();
@@ -248,7 +276,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
-    if (nodes.empty) throw std::invalid_argument("Cannot convert empty EHOG to HOG");
+    if (nodes.empty()) throw std::invalid_argument("Cannot convert empty EHOG to HOG");
 
     // Initialize resulting array
     size_t_max node_count = nodes.size();
@@ -311,4 +339,13 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
     }
 
     remove_redundant_edges(keep);
+}
+
+template <typename kmer_t, typename size_t_max>
+inline void HOGConstructer<kmer_t, size_t_max>::print(std::ostream& os) {
+    for (size_t_max i : BFS_indexes){
+        os << i << ": ";
+        nodes[i].print(os);
+        os << std::endl;
+    }
 }

@@ -20,7 +20,7 @@ void compute_with_hog(size_t_max type_num,
     auto hog = HOGConstructer<kmer_t, size_t_max>(kMers, k); // TODO handle complements
     hog.create();
 
-    os << "ok";
+    hog.print();
 }
 
 template <typename kmer_t>
@@ -37,9 +37,13 @@ void GlobalHOG(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool comp
             kMers[i + n] = ReverseComplement(kMers[i], k);
         }
     }
+    
     size_t limit = kMers.size() * k;
-    if (limit < (1 << 16)) compute_with_hog((uint16_t)0, kMers, os, k, complements);
-    else if (limit < (1 << 32)) compute_with_hog((uint32_t)0, kMers, os, k, complements);
-    else compute_with_hog((uint64_t)0, kMers, os, k, complements);
+    if (limit < (size_t(1) << 15))
+        compute_with_hog((uint16_t)0, kMers, os, k, complements);
+    else if (limit < (size_t(1) << 31))
+        compute_with_hog((uint32_t)0, kMers, os, k, complements);
+    else
+        compute_with_hog((uint64_t)0, kMers, os, k, complements);
 }
 
