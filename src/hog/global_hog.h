@@ -18,9 +18,10 @@ template <typename kmer_t, typename size_t_max>
 void compute_with_hog(size_t_max type_num,
         std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements){
     auto hog = HOGConstructer<kmer_t, size_t_max>(kMers, k); // TODO handle complements
+    hog.VERBOSE = 1;
     hog.create();
 
-    hog.print();
+    //hog.print();
 }
 
 template <typename kmer_t>

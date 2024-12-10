@@ -77,8 +77,8 @@ template <typename kmer_t, typename size_t_max>
 class HOGConstructer {
     std::vector<kmer_t>& kMers;
     std::vector<Node<size_t_max>> nodes;
-    std::vector<size_t_max> leaves;
-    std::vector<size_t_max> BFS_indexes;
+    std::vector<size_t_max> leaves; // TODO remove (not needed: BFS_indexes[-n:])
+    std::vector<size_t_max> BFS_indexes; // TODO sort nodes in this order effectively and get rid of this
     size_t_max k;
     size_t_max n;
 
@@ -88,6 +88,7 @@ class HOGConstructer {
     void remove_redundant_edges(std::vector<bool>& keep);
     void recreate_BFS_indexes();
 public:
+    size_t VERBOSE = 0;
     /*HOGConstructer(size_t_max k) :
         k(k), n(0) {};*/
     HOGConstructer(std::vector<kmer_t>& kMers, size_t_max k) :
@@ -98,16 +99,16 @@ public:
     void convert_EHOG_to_HOG();
     
     inline void create() {
-        std::cout << "Constructing AC..." << std::endl;
+        if (VERBOSE > 0) std::cout << "Constructing AC..." << std::endl;
         construct_AC();
-        print();
-        std::cout << "Converting to EHOG..." << std::endl;
+        if (VERBOSE > 1) print();
+        if (VERBOSE > 0) std::cout << "Converting to EHOG..." << std::endl;
         convert_AC_to_EHOG();
-        print();
-        std::cout << "Converting to HOG..." << std::endl;
+        if (VERBOSE > 1 )print();
+        if (VERBOSE > 0) std::cout << "Converting to HOG..." << std::endl;
         convert_EHOG_to_HOG();
-        print();
-        std::cout << "Done..." << std::endl;
+        if (VERBOSE > 1) print();
+        if (VERBOSE > 0) std::cout << "Done..." << std::endl;
     }
 
     void print(std::ostream& os = std::cout);
@@ -121,7 +122,26 @@ inline void HOGConstructer<kmer_t, size_t_max>::remove_redundant_edges(std::vect
     size_t_max node_count = nodes.size();
     if (node_count != keep.size()) throw std::invalid_argument("Invalid removing mask passed as argument");
 
-    std::cout << "Removing redundant...";
+    if (VERBOSE > 0) std::cout << "Removing redundant...";
+
+    // Contract edges from and to non-keeped nodes
+    // Ignore failure links (those we care about are already good)
+    ;
+    // Replace up-facing edges in BFS order
+    for (size_t_max i : BFS_indexes){
+        if (keep[i]){
+            // Add this node as child of its new parent
+            nodes[nodes[i].parent].children.push_back(i);
+
+            // Remove its old children
+            nodes[i].children.clear();
+            // (Also removes loop from root)
+        }
+        else {
+            // Tell all its children it is no more their parent
+            for (size_t_max child_index : nodes[i].children) nodes[child_index].parent = nodes[i].parent;
+        }
+    }
 
     // Move keeped nodes to the beginning
     std::vector<size_t_max> new_indexes(node_count, 0);
@@ -144,13 +164,15 @@ inline void HOGConstructer<kmer_t, size_t_max>::remove_redundant_edges(std::vect
     // Update pointers from leaves
     for (size_t_max& leaf : leaves) leaf = new_indexes[leaf];
     
-    std::cout << " keeping " << keeped << '/' << node_count << std::endl;
+    if (VERBOSE > 0) std::cout << " keeped " << keeped << '/' << node_count << std::endl;
     // Get rid of non-keeped nodes
     nodes.resize(keeped);
 }
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::recreate_BFS_indexes(){
+    if (VERBOSE > 0) std::cout << "Recreating BFS indexes...";
+
     BFS_indexes.clear();
     BFS_indexes.push_back(0);
 
@@ -167,6 +189,8 @@ inline void HOGConstructer<kmer_t, size_t_max>::recreate_BFS_indexes(){
             queue.push(child_index);
         }
     }
+
+    if (VERBOSE > 0) std::cout << " done" << std::endl;
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -273,25 +297,6 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
         }
     }
 
-    // Contract edges from and to non-keeped nodes
-    // Ignore failure links (those we care about are already good)
-    ;
-    // Replace up-facing edges in BFS order
-    for (size_t_max i : BFS_indexes){
-        if (keep[i]){
-            // Add this node as child of its new parent
-            nodes[nodes[i].parent].children.push_back(i);
-
-            // Remove its old children
-            nodes[i].children.clear();
-            // (Also removes loop from root)
-        }
-        else {
-            // Tell all its children it is no more their parent
-            for (size_t_max child_index : nodes[i].children) nodes[child_index].parent = nodes[i].parent;
-        }
-    }
-
     remove_redundant_edges(keep);
     recreate_BFS_indexes();
 }
@@ -303,10 +308,9 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
     // Initialize resulting array
     size_t_max node_count = nodes.size();
     std::vector<bool> keep(node_count, false);
-    keep[0] = true;
 
     // Initialize helper arrays
-    std::vector<bool> black(node_count, 0);
+    std::vector<bool> white(node_count, false);
     std::vector<uint8_t> child_count(node_count, 0);
     std::vector<size_t_max> favorite_proper_ancestor(node_count, 0);
     std::vector<size_t_max> favorite_descendant(node_count, 0);
@@ -322,15 +326,16 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
         favorite_proper_ancestor[i] = proper_ancestor;
     }
     // FavDesc
-    for (size_t_max i = node_count - 1; i >= 0; --i){
-        size_t_max descendant = BFS_indexes[i];
-        if (child_count[descendant] == 1) descendant = favorite_descendant[descendant];
-        
-        favorite_descendant[BFS_indexes[i]] = descendant;
+    for (size_t_max i = node_count; i > 0; --i){
+        size_t_max descendant = BFS_indexes[i - 1];
+        if (child_count[descendant] == 1)
+            descendant = favorite_descendant[nodes[descendant].children[0]];
+        favorite_descendant[BFS_indexes[i - 1]] = descendant;
     }
     // Mark all leaves white
-    for (size_t_max i = 0; i < n; ++i) black[leaves[i]] = true;
+    for (size_t_max i = 0; i < n; ++i) white[leaves[i]] = true;
 
+    keep[0] = true;
     for (size_t_max x : leaves){
         keep[x] = true;
         size_t_max v = nodes[x].failure;
@@ -339,7 +344,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
             size_t_max u = favorite_descendant[v];
             if (child_count[u] != 0){
                 child_count[u] = 0;
-                keep[x] = true;
+                keep[v] = true;
 
                 while (u != 0){
                     modified_vertices.push_back(u);
