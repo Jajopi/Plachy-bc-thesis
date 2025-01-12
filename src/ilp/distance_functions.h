@@ -12,21 +12,6 @@
 
 #include "../kmers.h"
 
-template<typename kmer_t>
-size_t compute_max_overlap(kmer_t kmer1, kmer_t kmer2, size_t k){
-    for (size_t ov = k; ov > 0; --ov){
-        bool found = true;
-        for (size_t i = 0; i < ov; ++i){
-            if (NucleotideAtIndex(kmer2, k, i) != NucleotideAtIndex(kmer1, k, k - ov + i)){
-                found = false;
-                break;
-            }
-        }
-        if (found) return ov;
-    }
-    return 0;
-}
-
 template <typename kmer_t>
 int trivial_distance(const std::vector<kmer_t>& kmers, size_t k, size_t index1, size_t index2){
     if (index1 >= kmers.size() || index2 >= kmers.size())

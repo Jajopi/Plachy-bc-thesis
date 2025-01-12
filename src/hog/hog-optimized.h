@@ -7,21 +7,54 @@
 #include <vector>
 #include <queue>
 #include <algorithm>
+#include <limits>
 
 #include "../kmers.h"
+
+//in-place radix sort as in https://stackoverflow.com/questions/463105/in-place-radix-sort
+template <typename kmer_t>
+void radix_sort(std::vector<kmer_t>& kMers, size_t k, size_t begin, size_t end, size_t base = 0){
+    if (begin >= end) return;
+
+    size_t AEnd = begin, TBegin = end;
+    size_t i = begin;
+    while (i < TBegin){
+        char nucleotide = NucleotideAtIndex(kMers[i], k, base);
+        if (nucleotide == 'A') std::swap(kMers[i++], kMers[AEnd++]);
+        else if (nucleotide == 'T') std::swap(kMers[i], kMers[--TBegin]);
+        else ++i;
+    }
+    size_t CEnd = i = AEnd;
+    while (i < TBegin){
+        char nucleotide = NucleotideAtIndex(kMers[i], k, base);
+        if (nucleotide == 'C') std::swap(kMers[i], kMers[CEnd++]);
+        ++i;
+    }
+
+    if (base < k){
+        radix_sort(kMers, k, begin, AEnd, base + 1);  // A
+        radix_sort(kMers, k, AEnd, CEnd, base + 1);   // C
+        radix_sort(kMers, k, CEnd, TBegin, base + 1); // G
+        radix_sort(kMers, k, TBegin, end, base + 1);  // T
+    }
+}
 
 template<typename size_t_max>
 struct Node {
     size_t_max kmer_index;
     size_t_max depth;
-    //size_t_max index; // Might not need it in the end
     size_t_max parent;
     size_t_max failure;
-    std::vector<size_t_max> children;
+    //std::vector<size_t_max> children;
+    size_t_max child_range_begin;
+    size_t_max child_range_end;
 
-    Node(size_t_max kmer_index, size_t_max depth, /*size_t_max index,*/ size_t_max parent) :
-        kmer_index(kmer_index), /*index(index),*/ depth(depth), parent(parent),
-        failure(0) {};
+    Node(size_t_max kmer_index, size_t_max depth, size_t_max parent) :
+        kmer_index(kmer_index), depth(depth), parent(parent),
+        failure(0), child_range_begin(0), child_range_end(0) {};
+    Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max last_child) :
+        kmer_index(kmer_index), depth(depth), parent(0),
+        failure(0), child_range_begin(first_child), child_range_end(last_child) {};
     Node() { throw std::invalid_argument("Creating empty node"); };
 
     void print(std::ostream& os) const;
@@ -30,18 +63,22 @@ struct Node {
 template <typename size_t_max>
 inline void Node<size_t_max>::print(std::ostream &os) const {
     os << depth << '/' << kmer_index << ", P: " << parent << ", F: " << failure << ", CH: [ ";
-    for (auto child : children) os << child << ' ';
-    os << ']';
+    //for (auto child : children) os << child << ' ';
+    os << child_range_begin << " -- " << child_range_end << " ]";
 }
 
 template <typename kmer_t, typename size_t_max>
 class HOGConstructer {
     std::vector<kmer_t>& kMers;
     std::vector<Node<size_t_max>> nodes;
-    std::vector<size_t_max> leaves; // TODO remove (not needed: BFS_indexes[-n:]) ... Or maybe not
-    std::vector<size_t_max> BFS_indexes; // TODO sort nodes in this order effectively and get rid of this
-    size_t_max k;
-    size_t_max n;
+    //std::vector<size_t_max> leaves; // TODO remove (not needed: BFS_indexes[-n:]) ... Or maybe not
+    //std::vector<size_t_max> BFS_indexes; // TODO sort nodes in this order effectively and get rid of this
+    std::vector<std::pair<size_t_max, size_t_max>> leaf_intervals;
+    
+    size_t_max k; // kmer-length
+    size_t_max n; // number of kmers, number of leaves
+    size_t_max full_depth = 0; // depth at which there are still all possible AC nodes;
+    size_t_max INVALID_NODE = std::numeric_limits<size_t_max>::max();
 
     inline uint8_t get_edge_nucleotide(size_t_max child_index){
         return NucleotideIndexAtIndex(kMers[nodes[child_index].kmer_index], k, nodes[child_index].depth - 1);
@@ -55,6 +92,7 @@ public:
     HOGConstructer(std::vector<kmer_t>& kMers, size_t_max k) :
         kMers(kMers), k(k), n(kMers.size()) {};
 
+    void precompute_full_depth();
     void construct_AC();
     void convert_AC_to_EHOG();
     void convert_EHOG_to_HOG();
@@ -83,7 +121,7 @@ public:
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::remove_redundant_edges(std::vector<bool>& keep)
 {
-    size_t_max node_count = nodes.size();
+    /*size_t_max node_count = nodes.size();
     if (node_count != keep.size()) throw std::invalid_argument("Invalid removing mask passed as argument");
 
     if (VERBOSE > 0) std::cout << "Removing redundant...";
@@ -130,12 +168,12 @@ inline void HOGConstructer<kmer_t, size_t_max>::remove_redundant_edges(std::vect
     
     if (VERBOSE > 0) std::cout << " keeped " << keeped << '/' << node_count << std::endl;
     // Get rid of non-keeped nodes
-    nodes.resize(keeped);
+    nodes.resize(keeped);*/
 }
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::recreate_BFS_indexes(){
-    if (VERBOSE > 0) std::cout << "Recreating BFS indexes...";
+    /*if (VERBOSE > 0) std::cout << "Recreating BFS indexes...";
 
     BFS_indexes.clear();
     BFS_indexes.push_back(0);
@@ -154,17 +192,76 @@ inline void HOGConstructer<kmer_t, size_t_max>::recreate_BFS_indexes(){
         }
     }
 
-    if (VERBOSE > 0) std::cout << " done" << std::endl;
+    if (VERBOSE > 0) std::cout << " done" << std::endl;*/
 }
 
 template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::construct_AC()
-{
+inline void HOGConstructer<kmer_t, size_t_max>::precompute_full_depth(){
+    full_depth = k - 1;
+    kmer_t max_diff = 1 << 2; //1 << (2 * (k - full_depth));
+
+    kmer_t last_kmer = kMers[0];
+    for (kmer_t actual_kmer : kMers){
+        while (actual_kmer - last_kmer >= max_diff){
+            --full_depth;
+            max_diff <<= 2;
+        }
+        last_kmer = actual_kmer;
+    }
+}
+
+template <typename kmer_t, typename size_t_max>
+inline void HOGConstructer<kmer_t, size_t_max>::construct_AC() {
     if (!nodes.empty()) throw std::invalid_argument("AC has already been constructed");
+
+    radix_sort(kMers, k, 0, kMers.size());
+    precompute_full_depth();
+
+    nodes.reserve((k - full_depth) * kMers.size()); // TODO decrease
+
+    // Add leaves
+    for (size_t_max l = kMers.size() - 1; l >= 0; --l){
+        nodes.push_back(Node(l, k, INVALID_NODE, INVALID_NODE));
+    }
+
+    // Create other nodes, set children and parents
+    size_t_max node_count = kMers.size();
+    size_t_max actual_depth = k;
+    kmer_t max_diff = 1;
+
+    for (size_t_max i = 0; i < node_count; ++i){
+        if (nodes[i].depth != actual_depth){
+            --actual_depth;
+            max_diff <<= 2;
+
+            if (actual_depth == full_depth){
+                // Set parents of top nodes (in depth = full-depth)
+                while (i < node_count) nodes[i++].parent = INVALID_NODE;
+                break;
+            };
+        }
+
+        size_t_max j = i;
+        while (nodes[j].depth == actual_depth && // TODO can first part be removed?
+               kMers[nodes[i].kmer_index] - kMers[nodes[j].kmer_index] < max_diff){
+                    nodes[j].parent = node_count;
+                    ++j;
+                };
+        
+        nodes.push_back(Node(nodes[i].kmer_index, (size_t_max)(actual_depth - 1), i, j));
+        ++node_count;
+        i = j - 1;
+    }
+
+    nodes.shrink_to_fit();
+
+
+    
+    /*if (!nodes.empty()) throw std::invalid_argument("AC has already been constructed");
 
     // Add nodes and forward edges
     //nodes.resize(n); // TODO better guess
-    nodes.emplace_back(0, 0, /*0,*/ 0);
+    nodes.emplace_back(0, 0, 0);
     size_t_max node_count = 1;
 
     leaves.clear();
@@ -186,7 +283,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC()
             }
             else {
                 // Index of new node = node count
-                nodes.emplace_back(kmer_index, depth + 1, /*node_count,*/ node_index);
+                nodes.emplace_back(kmer_index, depth + 1, node_index);
                 for (auto ii = 0; ii < 4; ++ii) has_basic_child.push_back(false);
                 // Add new child to parent
                 nodes[node_index].children.push_back(node_count);
@@ -239,12 +336,12 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC()
 
             queue.push(child_index);
         }
-    }
+    }*/
 }
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
-    if (nodes.empty()) throw std::invalid_argument("Cannot convert empty AC to EHOG");
+    /*if (nodes.empty()) throw std::invalid_argument("Cannot convert empty AC to EHOG");
 
     // Mark nodes to be keeped
     size_t_max node_count = nodes.size();
@@ -262,12 +359,12 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
     }
 
     remove_redundant_edges(keep);
-    recreate_BFS_indexes();
+    recreate_BFS_indexes();*/
 }
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
-    if (nodes.empty()) throw std::invalid_argument("Cannot convert empty EHOG to HOG");
+    /*if (nodes.empty()) throw std::invalid_argument("Cannot convert empty EHOG to HOG");
 
     // Initialize resulting array
     size_t_max node_count = nodes.size();
@@ -330,12 +427,13 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
     }
 
     remove_redundant_edges(keep);
-    recreate_BFS_indexes();
+    recreate_BFS_indexes();*/
 }
 
 template <typename kmer_t, typename size_t_max>
 inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_ordering(size_t_max new_run_score, size_t_max base_score) {
-    size_t_max node_count = nodes.size();
+    return std::vector<size_t_max>();
+    /*size_t_max node_count = nodes.size();
     
     std::vector<size_t_max> indexes;
     std::vector<bool> was_used(node_count, false);
@@ -383,7 +481,7 @@ inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_order
                                                   failure_index); std::push_heap(heap);
                 }
                 else {
-                    heap.push_back(std::make_pair(score, child_index));
+                    heap.push_back(std::make_pair(score, child_index))
                 }
             }
             
@@ -445,7 +543,7 @@ inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_order
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::print_stats(std::ostream &os)
 {
-    std::vector<size_t_max> depth_count(k + 1, 0);
+    /*std::vector<size_t_max> depth_count(k + 1, 0);
     std::vector<size_t_max> real_depth_count(k + 1, 0);
     std::vector<size_t_max> real_depths(nodes.size(), 0);
     for (size_t_max i : BFS_indexes){
@@ -458,14 +556,14 @@ inline void HOGConstructer<kmer_t, size_t_max>::print_stats(std::ostream &os)
     }
     for (size_t_max i=0; i <= k; i++){
         std::cout << i << ":\t" << real_depth_count[i] << std::endl;
-    }
+    }*/
 }
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::print(std::ostream& os) {
-    for (size_t_max i : BFS_indexes){
+    /*for (size_t_max i : BFS_indexes){
         os << i << ": ";
         nodes[i].print(os);
         os << std::endl;
-    }
+    }*/
 }
