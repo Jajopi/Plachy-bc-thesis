@@ -11,6 +11,8 @@
 
 #include "../kmers.h"
 
+// #define USE_RADIX_SORT // Too slow!
+
 //template<typename size_t_max>
 //constexpr size_t_max INVALID_NODE_TEMPLATE = std::numeric_limits<size_t_max>::max();
 
@@ -132,6 +134,8 @@ public:
         if (VERBOSE > 0) std::cout << "Done: " << nodes.size() << " nodes" << std::endl;
     }
 
+    void sort(std::vector<kmer_t>& kMers, size_t_max begin, size_t_max end, size_t_max base = 0);
+    void sort(std::vector<kmer_t>& kMers);
     std::vector<size_t_max> compute_ordering(size_t_max new_run_score, size_t_max base_score = 1);
 
     void print_stats(std::ostream& os = std::cout);
@@ -236,7 +240,7 @@ template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
     if (!nodes.empty()) throw std::invalid_argument("EHOG has already been constructed");
 
-    radix_sort(kMers, k);
+    sort(kMers);
 
     nodes.reserve(k * kMers.size()); // TODO decrease
 
@@ -270,7 +274,8 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
         //std::cout << saved_node_count << ' ' << last_node_count << ' ' << new_node_index << std::endl;
 
         for (size_t_max i = 0; i < n; ++i) failures[i] = BitSuffix(failures[i], depth);
-        radix_sort(failures, k, size_t_max(0), n, size_t_max(k - depth));
+
+        sort(failures, size_t_max(0), n, size_t_max(k - depth));
 
         size_t_max failure_index = n - 1;
         for (size_t_max i = 0; i < last_node_count; ++i){
@@ -287,7 +292,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
             }
 
             kmer_t current_prefix = BitPrefix(kMers[last_nodes[i].kmer_index], k, depth);
-            while (failure_index > 0 && current_prefix < failures[failure_index]) --failure_index; // Todo remove zero check
+            while (failure_index > 0 && current_prefix < failures[failure_index]) --failure_index;
             
             if (current_prefix == failures[failure_index]){
                 current_nodes.push_back(Node(last_nodes[i].kmer_index,
@@ -350,6 +355,10 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
             }
         }
 
+        for (size_t_max i = 0; i < n; ++i){
+            if (last_failure_indexes[i] != INVALID_NODE()) last_failure_indexes[i] -= shift_from_removed;
+        }
+
         max_diff <<= 2;
         last_nodes = std::move(current_nodes);
     }
@@ -366,6 +375,24 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
             nodes[nodes[i].failure].failure = i;
         }
     }
+}
+
+template <typename kmer_t, typename size_t_max>
+inline void HOGConstructer<kmer_t, size_t_max>::sort(std::vector<kmer_t> &kMers, size_t_max begin, size_t_max end, size_t_max base) {
+    #ifdef USE_RADIX_SORT
+        radix_sort(kMers, k, begin, end, base);
+    #else
+        std::sort(kMers.begin(), kMers.end());
+    #endif
+}
+
+template <typename kmer_t, typename size_t_max>
+inline void HOGConstructer<kmer_t, size_t_max>::sort(std::vector<kmer_t> &kMers) {
+    #ifdef USE_RADIX_SORT
+        sort(kMers, 0, kMers.size(), 0);
+    #else
+        std::sort(kMers.begin(), kMers.end());
+    #endif
 }
 
 //template <typename kmer_t, typename size_t_max>
