@@ -12,7 +12,7 @@
 
 #include "../kmers.h"
 
-#include "hog.h"
+#include "hog-optimized.h"
 
 template <typename kmer_t, typename size_t_max>
 void compute_with_hog(size_t_max type_num,
@@ -20,8 +20,10 @@ void compute_with_hog(size_t_max type_num,
     auto hog = HOGConstructer<kmer_t, size_t_max>(kMers, k); // TODO handle complements
     hog.VERBOSE = 1;
     hog.create();
+    hog.print_stats();
 
-    //hog.print();
+    //auto indexes = hog.compute_ordering();
+    //decode_and_print_indexes(kMers, indexes, os, k);
 }
 
 template <typename kmer_t>
