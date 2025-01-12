@@ -11,20 +11,23 @@
 
 #include "../kmers.h"
 
+template<typename size_t_max>
+constexpr size_t_max INVALID_NODE_TEMPLATE = std::numeric_limits<size_t_max>::max();
+
 //in-place radix sort as in https://stackoverflow.com/questions/463105/in-place-radix-sort
-template <typename kmer_t>
-void radix_sort(std::vector<kmer_t>& kMers, size_t k, size_t begin, size_t end, size_t base = 0){
+template <typename kmer_t, typename size_t_max>
+void radix_sort(std::vector<kmer_t>& kMers, size_t_max k, size_t_max begin, size_t_max end, size_t_max base = 0){
     if (begin >= end) return;
 
-    size_t AEnd = begin, TBegin = end;
-    size_t i = begin;
+    size_t_max AEnd = begin, TBegin = end;
+    size_t_max i = begin;
     while (i < TBegin){
         char nucleotide = NucleotideAtIndex(kMers[i], k, base);
         if (nucleotide == 'A') std::swap(kMers[i++], kMers[AEnd++]);
         else if (nucleotide == 'T') std::swap(kMers[i], kMers[--TBegin]);
         else ++i;
     }
-    size_t CEnd = i = AEnd;
+    size_t_max CEnd = i = AEnd;
     while (i < TBegin){
         char nucleotide = NucleotideAtIndex(kMers[i], k, base);
         if (nucleotide == 'C') std::swap(kMers[i], kMers[CEnd++]);
@@ -32,11 +35,16 @@ void radix_sort(std::vector<kmer_t>& kMers, size_t k, size_t begin, size_t end, 
     }
 
     if (base < k){
-        radix_sort(kMers, k, begin, AEnd, base + 1);  // A
-        radix_sort(kMers, k, AEnd, CEnd, base + 1);   // C
-        radix_sort(kMers, k, CEnd, TBegin, base + 1); // G
-        radix_sort(kMers, k, TBegin, end, base + 1);  // T
+        radix_sort(kMers, k, begin, AEnd, (size_t_max)(base + 1));  // A
+        radix_sort(kMers, k, AEnd, CEnd, (size_t_max)(base + 1));   // C
+        radix_sort(kMers, k, CEnd, TBegin, (size_t_max)(base + 1)); // G
+        radix_sort(kMers, k, TBegin, end, (size_t_max)(base + 1));  // T
     }
+}
+
+template <typename kmer_t, typename size_t_max>
+void radix_sort(std::vector<kmer_t>& kMers, size_t_max k){
+    radix_sort(kMers, k, size_t_max(0), size_t_max(kMers.size()), size_t_max(0));
 }
 
 template<typename size_t_max>
@@ -45,17 +53,27 @@ struct Node {
     size_t_max depth;
     size_t_max parent;
     size_t_max failure;
-    //std::vector<size_t_max> children;
+    size_t_max inverse_failure;
     size_t_max child_range_begin;
     size_t_max child_range_end;
 
+    using INVALID_NODE = INVALID_NODE_TEMPLATE<size_t_max>;
+
     Node(size_t_max kmer_index, size_t_max depth, size_t_max parent) :
         kmer_index(kmer_index), depth(depth), parent(parent),
-        failure(0), child_range_begin(0), child_range_end(0) {};
+        failure(INVALID_NODE), inverse_failure(INVALID_NODE),
+        child_range_begin(INVALID_NODE), child_range_end(INVALID_NODE) {};
+
     Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max last_child) :
-        kmer_index(kmer_index), depth(depth), parent(0),
-        failure(0), child_range_begin(first_child), child_range_end(last_child) {};
-    Node() { throw std::invalid_argument("Creating empty node"); };
+        kmer_index(kmer_index), depth(depth), parent(INVALID_NODE),
+        failure(INVALID_NODE), inverse_failure(INVALID_NODE),
+        child_range_begin(first_child), child_range_end(last_child) {};
+    
+    Node() : kmer_index(INVALID_NODE) {}; // Special invalid type of node
+
+    inline bool is_invalid () const {
+        return kmer_index == INVALID_NODE;
+    };
 
     void print(std::ostream& os) const;
 };
@@ -78,7 +96,7 @@ class HOGConstructer {
     size_t_max k; // kmer-length
     size_t_max n; // number of kmers, number of leaves
     size_t_max full_depth = 0; // depth at which there are still all possible AC nodes;
-    size_t_max INVALID_NODE = std::numeric_limits<size_t_max>::max();
+    size_t_max INVALID_NODE = INVALID_NODE_TEMPLATE<size_t_max>;
 
     inline uint8_t get_edge_nucleotide(size_t_max child_index){
         return NucleotideIndexAtIndex(kMers[nodes[child_index].kmer_index], k, nodes[child_index].depth - 1);
@@ -93,16 +111,15 @@ public:
         kMers(kMers), k(k), n(kMers.size()) {};
 
     void precompute_full_depth();
-    void construct_AC();
-    void convert_AC_to_EHOG();
+    void construct_EHOG();
     void convert_EHOG_to_HOG();
     
     inline void create() {
         if (VERBOSE > 0) std::cout << "Constructing AC..." << std::endl;
-        construct_AC();
+        //construct_AC();
         if (VERBOSE > 1) print();
         if (VERBOSE > 0) std::cout << "Converting to EHOG..." << std::endl;
-        convert_AC_to_EHOG();
+        //convert_AC_to_EHOG();
         if (VERBOSE > 1 )print();
         if (VERBOSE > 0) std::cout << "Converting to HOG..." << std::endl;
         convert_EHOG_to_HOG();
@@ -211,21 +228,21 @@ inline void HOGConstructer<kmer_t, size_t_max>::precompute_full_depth(){
 }
 
 template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::construct_AC() {
+inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
     if (!nodes.empty()) throw std::invalid_argument("AC has already been constructed");
 
-    radix_sort(kMers, k, 0, kMers.size());
+    radix_sort(kMers, k);
     precompute_full_depth();
 
     nodes.reserve((k - full_depth) * kMers.size()); // TODO decrease
 
-    // Add leaves
+    /*// Add leaves
     for (size_t_max l = kMers.size() - 1; l >= 0; --l){
         nodes.push_back(Node(l, k, INVALID_NODE, INVALID_NODE));
     }
 
     // Create other nodes, set children and parents
-    size_t_max node_count = kMers.size();
+    //size_t_max node_count = kMers.size();
     size_t_max actual_depth = k;
     kmer_t max_diff = 1;
 
@@ -253,9 +270,114 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC() {
         i = j - 1;
     }
 
-    nodes.shrink_to_fit();
+    nodes.shrink_to_fit();*/
 
 
+    std::vector<Node<size_t_max>> current_nodes, last_nodes;
+    current_nodes.reserve(n); // Might not be enought? Or?
+    last_nodes.reserve(n); // Might not be enought? Or?
+    
+    std::vector<kmer_t> failures; failures.reserve(n);
+    std::vector<size_t_max> last_failure_indexes; last_failure_indexes.reserve(n);
+    
+    size_t_max new_node_index = 0;
+
+    // Add leaves
+    for (size_t_max i = kMers.size() - 1; i >= 0; --i){
+        last_nodes.push_back(Node(i, k, INVALID_NODE, INVALID_NODE));
+    }
+    new_node_index = kMers.size();
+    failures = kMers; // Copy
+    last_failure_indexes.resize(n); for (size_t_max i = 0; i < n; ++i) last_failure_indexes[i] = i;
+    
+    // Add other nodes
+    kmer_t max_diff = 1 << 2;
+
+    for (size_t_max depth = k - 1; depth >= full_depth; --depth){
+        size_t_max saved_node_count = nodes.size();
+        size_t_max last_node_count = last_nodes.size();
+        size_t_max shift_from_removed = 0;
+
+        for (size_t_max i = 0; i < n; ++i) failures[i] = BitSuffix(failures[i], depth * 2); // Is it really * 2 ?
+        radix_sort(failures, k, size_t_max(0), n, size_t_max(k - depth));
+
+        size_t_max failure_index = n - 1;
+        for (size_t_max i = 0; i < last_node_count; ++i){
+            /*if (inverse_failure_indexes[i] != INVALID_NODE){
+                nodes[inverse_failure_indexes[i]].failure -= shift_from_removed;
+            }*/
+
+            size_t_max j = i;
+            while (j < last_node_count &&
+                    kMers[last_nodes[i].kmer_index] - kMers[last_nodes[j].kmer_index] < max_diff){
+                nodes[j].parent = new_node_index;
+                ++j;
+            }
+
+            kmer_t current_prefix = BitPrefix(kMers[i], k * 2, depth * 2); // Is it really * 2 ?
+            while (failure_index >= 0 && current_prefix < failures[failure_index]) --failure_index;
+            
+            if (current_prefix == failures[failure_index]){
+                current_nodes.push_back(Node(last_nodes[i].kmer_index,
+                                                size_t_max(depth - 1),
+                                                size_t_max(i - shift_from_removed),
+                                                size_t_max(j - shift_from_removed)));
+                
+                size_t_max last_failure_index = last_failure_indexes[failure_index];
+                if (last_failure_index < saved_node_count){
+                    nodes[last_failure_index].failure = new_node_index;
+                    
+                }
+                current_nodes.back().inverse_failure = last_failure_index;
+                last_failure_indexes[failure_index] = new_node_index;
+                //nodes[last_failure_indexes[failure_index]].failure = new_node_index;
+                ++new_node_index;
+            }
+            else {
+                for (size_t_max swap_index = i; swap_index < j; ++swap_index){
+                    current_nodes.push_back(Node<size_t_max>());
+                    std::swap(current_nodes.back(), last_nodes[swap_index]);
+                }
+                shift_from_removed += j - i;
+                new_node_index += j - i;
+            }
+
+            i = j - 1;
+        }
+
+        
+        for (Node node: last_nodes){
+            if (!node.is_invalid()){
+                node.parent -= shift_from_removed;
+                //if (node.failure != INVALID_NODE) node.failure -= shift_from_removed;
+                nodes.push_back(node);
+            }
+        }
+
+        max_diff <<= 2;
+        last_nodes = std::move(current_nodes);
+    }
+
+    for (Node node: last_nodes) nodes.push_back(node);
+
+    // Create failure links
+
+    size_t_max node_index = 0;
+    failures = kMers;
+    for (size_t_max depth = k; depth > full_depth; --depth){
+        if (depth != k){
+            for (size_t_max i = 0; i < n; ++i) failures[i] = BitSuffix(failures[i], depth * 2); // Is it really * 2 ?
+            radix_sort(failures, k, size_t_max(0), n, size_t_max(k - depth));
+        }
+
+        for (size_t_max i = 0; i < n; ++i){
+            if (i < n - 1 && failures[i] == failures[i + 1]) continue;
+
+            nodes[node_index].failure;
+        }
+
+        
+    }
     
     /*if (!nodes.empty()) throw std::invalid_argument("AC has already been constructed");
 
@@ -339,8 +461,8 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_AC() {
     }*/
 }
 
-template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
+//template <typename kmer_t, typename size_t_max>
+//inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
     /*if (nodes.empty()) throw std::invalid_argument("Cannot convert empty AC to EHOG");
 
     // Mark nodes to be keeped
@@ -360,7 +482,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_AC_to_EHOG() {
 
     remove_redundant_edges(keep);
     recreate_BFS_indexes();*/
-}
+//}
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
