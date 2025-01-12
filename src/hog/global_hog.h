@@ -19,8 +19,8 @@ void compute_with_hog(size_t_max type_num,
         std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements){
     auto hog = HOGConstructer<kmer_t, size_t_max>(kMers, k); // TODO handle complements
     hog.VERBOSE = 1;
-    hog.create();
-    hog.print_stats();
+    hog.construct_EHOG();
+    hog.print();
 
     //auto indexes = hog.compute_ordering();
     //decode_and_print_indexes(kMers, indexes, os, k);
