@@ -53,7 +53,6 @@ struct Node {
     size_t_max depth;
     size_t_max parent;
     size_t_max failure;
-    size_t_max inverse_failure;
     size_t_max child_range_begin;
     size_t_max child_range_end;
 
@@ -61,12 +60,12 @@ struct Node {
 
     Node(size_t_max kmer_index, size_t_max depth, size_t_max parent) :
         kmer_index(kmer_index), depth(depth), parent(parent),
-        failure(INVALID_NODE()), inverse_failure(INVALID_NODE()),
+        failure(INVALID_NODE()),
         child_range_begin(INVALID_NODE()), child_range_end(INVALID_NODE()) {};
 
     Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max last_child) :
         kmer_index(kmer_index), depth(depth), parent(INVALID_NODE()),
-        failure(INVALID_NODE()), inverse_failure(INVALID_NODE()),
+        failure(INVALID_NODE()),
         child_range_begin(first_child), child_range_end(last_child) {};
     
     Node() : kmer_index(INVALID_NODE()) {}; // Special invalid type of node
@@ -118,6 +117,7 @@ public:
     //void precompute_full_depth();
     void construct_EHOG();
     void convert_EHOG_to_HOG();
+    // TODO convert child ranges to leaf ranges - or skip HOG and do it in construction? Is it possible?
     
     inline void create() {
         if (VERBOSE > 0) std::cout << "Constructing AC..." << std::endl;
@@ -244,6 +244,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
     current_nodes.reserve(n); // Might not be enought? Or?
     last_nodes.reserve(n); // Might not be enought? Or?
     
+    // INVERSE failure links are stored instead during the construction
     std::vector<kmer_t> failures; failures.reserve(n);
     std::vector<size_t_max> last_failure_indexes; last_failure_indexes.reserve(n);
     
@@ -263,6 +264,8 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
         size_t_max last_node_count = last_nodes.size();
         size_t_max new_node_index = saved_node_count + last_node_count;
         size_t_max shift_from_removed = 0;
+
+        std::vector<size_t_max> delayed_failure_indexes(last_node_count, INVALID_NODE());
         
         //std::cout << saved_node_count << ' ' << last_node_count << ' ' << new_node_index << std::endl;
 
@@ -271,8 +274,8 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
 
         size_t_max failure_index = n - 1;
         for (size_t_max i = 0; i < last_node_count; ++i){
-            if (last_nodes[i].failure != INVALID_NODE()){
-                nodes[last_nodes[i].failure].inverse_failure -= shift_from_removed; // "Reducing later"
+            if (delayed_failure_indexes[i] != INVALID_NODE()){
+                nodes[delayed_failure_indexes[i]].failure -= shift_from_removed; // "Reducing later"
             }
 
             size_t_max j = i;
@@ -294,16 +297,16 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                 
                 size_t_max last_failure_index = last_failure_indexes[failure_index];
                 if (last_failure_index < saved_node_count){
-                    current_nodes.back().inverse_failure = last_failure_index;
+                    current_nodes.back().failure = last_failure_index;
                 }
                 else {
                     size_t_max index_in_last_nodes = last_failure_index - saved_node_count;
                     if (index_in_last_nodes < j){
-                        current_nodes.back().inverse_failure = last_failure_index - shift_from_removed;
+                        current_nodes.back().failure = last_failure_index - shift_from_removed;
                     }
                     else {
-                        last_nodes[index_in_last_nodes].failure = new_node_index;
-                        current_nodes.back().inverse_failure = last_failure_index; // Will be reduced later
+                        current_nodes.back().failure = last_failure_index; // Will be reduced later
+                        delayed_failure_indexes[index_in_last_nodes] = new_node_index;
                     }
                 }
                 last_failure_indexes[failure_index] = new_node_index;
@@ -359,8 +362,8 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
 
     size_t_max node_count = nodes.size();
     for (size_t_max i = 0; i < node_count; ++i){
-        if (nodes[i].inverse_failure != INVALID_NODE()){
-            nodes[nodes[i].inverse_failure].failure = i;
+        if (nodes[i].failure != INVALID_NODE()){
+            nodes[nodes[i].failure].failure = i;
         }
     }
 }
