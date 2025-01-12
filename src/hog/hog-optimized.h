@@ -569,20 +569,24 @@ inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_order
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::print_stats(std::ostream &os)
 {
-    /*std::vector<size_t_max> depth_count(k + 1, 0);
+    std::cout << "Stats:" << std::endl;
+    std::vector<size_t_max> depth_count(k + 1, 0);
     std::vector<size_t_max> real_depth_count(k + 1, 0);
     std::vector<size_t_max> real_depths(nodes.size(), 0);
-    for (size_t_max i : BFS_indexes){
+    for (size_t_max i = nodes.size() - 1; i >= 0; --i){
         depth_count[nodes[i].depth]++;
-        if (i != 0) real_depths[i] = real_depths[nodes[i].parent] + 1;
+        if (i != nodes.size() - 1) real_depths[i] = real_depths[nodes[i].parent] + 1;
         real_depth_count[real_depths[i]]++;
+        if (i == 0) break;
     }
+    std::cout << "Depths:" << std::endl;
     for (size_t_max i=0; i <= k; i++){
         std::cout << i << ":\t" << depth_count[i] << std::endl;
     }
+    std::cout << "Real depths:" << std::endl;
     for (size_t_max i=0; i <= k; i++){
         std::cout << i << ":\t" << real_depth_count[i] << std::endl;
-    }*/
+    }
 }
 
 template <typename kmer_t, typename size_t_max>
