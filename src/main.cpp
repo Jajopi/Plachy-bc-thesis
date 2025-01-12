@@ -71,11 +71,11 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
     /* Handle streaming algorithm separately. */
     if (algorithm == "streaming") {
         WriteName(k, *of);
-        //Streaming(path, *of,  k , complements);
+        Streaming(path, *of,  k , complements);
     }
     /* Handle hash table based algorithms separately so that they consume less memory. */
     else if (algorithm == "global" || algorithm == "local") {
-        /*auto *kMers = wrapper.kh_init_set();
+        auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         if (!kh_size(kMers)) {
             std::cerr << "Path '" << path << "' contains no k-mers." << std::endl;
@@ -86,13 +86,13 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         if (algorithm == "global") {
             auto kMerVec = kMersToVec(kMers, kmer_type);
             wrapper.kh_destroy_set(kMers);
-            /* Turn off the memory optimizations if optimize_memory is set to false. * /
+            /* Turn off the memory optimizations if optimize_memory is set to false. */
             if(optimize_memory) PartialPreSort(kMerVec, k);
             else MEMORY_REDUCTION_FACTOR = 1;
             if (lower_bound) std::cout << LowerBoundLength(wrapper, kMerVec, k, complements);
             else Global(wrapper, kMerVec, *of, k, complements);
-        }*/
-        //else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
+        }
+        else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
     } else if (algorithm == "ILP" || algorithm == "ilp") {
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
@@ -117,10 +117,10 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         auto kMers = ConstructKMers(data, k, complements);
         WriteName(k, *of);
         if (algorithm == "globalAC") {
-            //GlobalAC(kMers, *of, complements);
+            GlobalAC(kMers, *of, complements);
         }
         else if (algorithm == "localAC") {
-            //LocalAC(kMers, *of, k, d_max, complements);
+            LocalAC(kMers, *of, k, d_max, complements);
         }
         else {
             std::cerr << "Algorithm '" << algorithm << "' not supported." << std::endl;
@@ -232,8 +232,8 @@ int main(int argc, char **argv) {
     if (k < 32) {
         return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     } else if (k < 64) {
-        //return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+        return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     } else {
-        //return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+        return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     }
 }
