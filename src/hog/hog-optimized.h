@@ -7,40 +7,6 @@
 
 #include "../kmers.h"
 
-#define USE_RADIX_SORT // Too slow!
-
-//in-place radix sort as in https://stackoverflow.com/questions/463105/in-place-radix-sort
-template <typename kmer_t, typename size_t_max>
-void radix_sort(std::vector<kmer_t>& kMers, size_t_max k, size_t_max begin, size_t_max end, size_t_max base = 0){
-    if (begin >= end) return;
-
-    size_t_max AEnd = begin, TBegin = end;
-    size_t_max i = begin;
-    while (i < TBegin){
-        char nucleotide = NucleotideAtIndex(kMers[i], k, base);
-        if (nucleotide == 'A') std::swap(kMers[i++], kMers[AEnd++]);
-        else if (nucleotide == 'T') std::swap(kMers[i], kMers[--TBegin]);
-        else ++i;
-    }
-    size_t_max CEnd = i = AEnd;
-    while (i < TBegin){
-        char nucleotide = NucleotideAtIndex(kMers[i], k, base);
-        if (nucleotide == 'C') std::swap(kMers[i], kMers[CEnd++]);
-        ++i;
-    }
-
-    if (base < k){
-        radix_sort(kMers, k, begin, AEnd, (size_t_max)(base + 1));  // A
-        radix_sort(kMers, k, AEnd, CEnd, (size_t_max)(base + 1));   // C
-        radix_sort(kMers, k, CEnd, TBegin, (size_t_max)(base + 1)); // G
-        radix_sort(kMers, k, TBegin, end, (size_t_max)(base + 1));  // T
-    }
-}
-
-template <typename kmer_t, typename size_t_max>
-void radix_sort(std::vector<kmer_t>& kMers, size_t_max k){
-    radix_sort(kMers, k, size_t_max(0), size_t_max(kMers.size()), size_t_max(0));
-}
 
 template<typename size_t_max>
 struct Node {
@@ -121,8 +87,11 @@ public:
         if (VERBOSE > 0) std::cout << "Done: " << nodes.size() << " nodes" << std::endl;
     }
 
-    void sort(std::vector<kmer_t>& kMers, size_t_max begin, size_t_max end, size_t_max base = 0);
-    void sort(std::vector<kmer_t>& kMers);
+    template<typename array_element>
+    void sort(std::vector<array_element>& array, size_t_max starting_base = 0);
+    //void radix_sort(std::vector<std::pair<kmer_t, size_t_max>>& array, size_t_max begin, size_t_max end, size_t_max starting_base = 0);
+    void sort_by_base(std::vector<std::pair<kmer_t, size_t_max>> &array, size_t_max base);
+
     std::vector<size_t_max> compute_ordering(size_t_max new_run_score, size_t_max base_score = 1);
 
     void print_stats(std::ostream& os = std::cout);
@@ -257,7 +226,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
         
         size_t_max failure_count = failures.size();
         for (size_t_max i = 0; i < failure_count; ++i) failures[i].first = BitSuffix(failures[i].first, depth - 1);
-        std::sort(failures.begin(), failures.end());
+        sort_by_base(failures, depth - 1);
         while (failures.back().second == INVALID_NODE()) failures.pop_back();
         size_t_max failure_index = failures.size() - 1;
 
@@ -273,17 +242,23 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
             size_t_max j = i;
             while (j < last_node_count &&
                     kMers[last_nodes[i].kmer_index] - kMers[last_nodes[j].kmer_index] < max_diff){
-                //std::cout << i << ' ' << j << ' ' << kMers[last_nodes[i].kmer_index] - kMers[last_nodes[j].kmer_index] << ' ' << max_diff << std::endl;
                 last_nodes[j].parent = new_node_index;
+
+                
+                if (delayed_failure_indexes[j] != INVALID_NODE()){
+                    last_nodes[j].failure = delayed_failure_indexes[j]; // "Setting later"
+                    if (creating_new_node){
+                        updated_failures.push_back(saved_node_count + j);
+                    }
+                    else {
+                        updated_failures.push_back(new_node_index + j - i);
+                    }
+                }
+
                 ++j;
             }
             
-            if (){
-                if (delayed_failure_indexes[i] != INVALID_NODE()){
-                    last_nodes[i - saved_node_count].failure = delayed_failure_indexes[i]; // "Setting later"
-                    updated_failures.push_back(i - shift_from_removed);
-                }
-
+            if (creating_new_node){
                 current_nodes.push_back(Node(last_nodes[i].kmer_index,
                                              size_t_max(depth - 1),
                                              size_t_max(i - shift_from_removed + saved_node_count),
@@ -299,18 +274,19 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                     }
                     else if (last_failure_index - saved_node_count < j){
                         last_nodes[last_failure_index - saved_node_count].failure = new_node_index;
-                        updated_failures.push_back(last_failure_index - shift_from_removed);
+                        updated_failures.push_back(last_failure_index);
                     }
                     else {
-                        delayed_failure_indexes[last_failure_index] = new_node_index; // Set later
+                        delayed_failure_indexes[last_failure_index - saved_node_count] = new_node_index; // Set later
                     }
-
-                    failures[failure_index].second = new_node_index;
                     
-                    if (!first_similar_failure){
-                        failures[failure_index] = std::make_pair(std::numeric_limits<kmer_t>::max(), INVALID_NODE()); // Will be last
+                    if (first_similar_failure){
+                        first_similar_failure = false;
+                        failures[failure_index].second = new_node_index;
                     }
-                    else first_similar_failure = false;
+                    else {
+                        failures[failure_index] = std::make_pair(std::numeric_limits<kmer_t>::max(), INVALID_NODE()); // Will be last, lost
+                    }
 
                     if (failure_index == 0) break;
                     --failure_index;
@@ -319,11 +295,6 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                 ++new_node_index;
             }
             else {
-                if (delayed_failure_indexes[i] != INVALID_NODE()){
-                    last_nodes[i - saved_node_count].failure = delayed_failure_indexes[i]; // "Setting later"
-                    updated_failures.push_back(i - shift_from_removed);
-                }
-
                 for (size_t_max swap_index = i; swap_index < j; ++swap_index){
                     current_nodes.push_back(Node<size_t_max>());
                     std::swap(current_nodes.back(), last_nodes[swap_index]);
@@ -335,7 +306,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
             i = j - 1;
         }
 
-        /*std::cout << shift_from_removed << std::endl;
+        std::cout << shift_from_removed << std::endl;
 
         std::cout << std::endl;
         size_t_max i = nodes.size();
@@ -349,7 +320,19 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
             std::cout << i++ << ": ";
             node.print(std::cout); std::cout << std::endl;
         }
-        std::cout << std::endl;*/
+        std::cout << std::endl;
+
+        for (size_t_max update_index : updated_failures){
+            if (update_index < saved_node_count){
+                nodes[update_index].failure -= shift_from_removed;
+            }
+            else if (update_index < saved_node_count + last_node_count){
+                last_nodes[update_index - saved_node_count].failure -= shift_from_removed;
+            }
+            else {
+                current_nodes[update_index - saved_node_count - last_node_count].failure -= shift_from_removed;
+            }
+        }
         
         for (Node node: last_nodes){
             if (!node.is_invalid()){
@@ -366,18 +349,9 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
         }
     }
 
-    for (Node node: last_nodes) nodes.push_back(node);
+    for (Node node: current_nodes) nodes.push_back(node);
 
     nodes.shrink_to_fit();
-
-    // Create failure links from inverse failure links
-
-    size_t_max node_count = nodes.size();
-    for (size_t_max i = 0; i < node_count; ++i){
-        if (nodes[i].failure != INVALID_NODE()){
-            nodes[nodes[i].failure].failure = i;
-        }
-    }
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -394,21 +368,70 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_to_leaf_ranges() {
 }
 
 template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::sort(std::vector<kmer_t> &kMers, size_t_max begin, size_t_max end, size_t_max base) {
-    #ifdef USE_RADIX_SORT
-        radix_sort(kMers, k, begin, end, base);
-    #else
-        std::sort(kMers.begin(), kMers.end());
-    #endif
+template <typename array_element>
+inline void HOGConstructer<kmer_t, size_t_max>::sort(std::vector<array_element> &array, size_t_max starting_base) {
+    /*if (array.size() > size_t(1 << (k - starting_base))){
+        radix_sort(array, 0, array.size(), starting_base);
+    }
+    else {
+        std::sort(array.begin(), kMers.end());
+    }*/
+    std::sort(array.begin(), kMers.end());
 }
 
+/*
+//in-place radix sort as in https://stackoverflow.com/questions/463105/in-place-radix-sort
 template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::sort(std::vector<kmer_t> &kMers) {
-    #ifdef USE_RADIX_SORT
-        sort(kMers, 0, kMers.size(), 0);
-    #else
-        std::sort(kMers.begin(), kMers.end());
-    #endif
+inline void HOGConstructer<kmer_t, size_t_max>::radix_sort(std::vector<std::pair<kmer_t, size_t_max>> &array, size_t_max begin, size_t_max end, size_t_max starting_base) {
+    if (begin >= end) return;
+
+    size_t_max AEnd = begin, TBegin = end;
+    size_t_max i = begin;
+    while (i < TBegin){
+        char nucleotide = NucleotideAtIndex(array[i].first, k, starting_base);
+        if (nucleotide == 'A') std::swap(array[i++], array[AEnd++]);
+        else if (nucleotide == 'T') std::swap(array[i], array[--TBegin]);
+        else ++i;
+    }
+    size_t_max CEnd = i = AEnd;
+    while (i < TBegin){
+        char nucleotide = NucleotideAtIndex(array[i].first, k, starting_base);
+        if (nucleotide == 'C') std::swap(array[i], array[CEnd++]);
+        ++i;
+    }
+
+    if (starting_base < k){
+        radix_sort(array, begin, AEnd, (size_t_max)(starting_base + 1));  // A
+        radix_sort(array, AEnd, CEnd, (size_t_max)(starting_base + 1));   // C
+        radix_sort(array, CEnd, TBegin, (size_t_max)(starting_base + 1)); // G
+        radix_sort(array, TBegin, end, (size_t_max)(starting_base + 1));  // T
+    }
+}*/
+
+template <typename kmer_t, typename size_t_max>
+inline void HOGConstructer<kmer_t, size_t_max>::sort_by_base(std::vector<std::pair<kmer_t, size_t_max>> &array, size_t_max starting_base) {
+    size_t_max start_indexes[5] = {0, 0, 0, 0, 0}; // Starts of: A, C, G, T, INV
+    for (auto p : array){
+        if (p.second == INVALID_NODE()) continue; // Not counting invalid nodes
+        uint8_t base_index = NucleotideIndexAtIndex(p.first, k, starting_base);
+        ++start_indexes[base_index + 1];
+    }
+
+    size_t_max end_indexes[5] = {0, 0, 0, 0, 0};
+    for (uint8_t i = 0; i < 4; ++i){
+        start_indexes[i + 1] += start_indexes[i];
+        end_indexes[i] = start_indexes[i + 1];
+    }
+
+    for (uint8_t i = 0; i < 4; ++i){
+        for (size_t_max s = start_indexes[i]; s < end_indexes[i]; ++s){
+            uint8_t base_index;
+            if (array[s].second == INVALID_NODE()) base_index = 4;
+            else base_index = NucleotideIndexAtIndex(array[s].first, k, starting_base);
+
+            if (base_index != i) std::swap(array[s--], array[start_indexes[base_index]++]);
+        }
+    }
 }
 
 template <typename kmer_t, typename size_t_max>
