@@ -212,11 +212,13 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
         current_nodes[i] = Node(size_t_max(n - i - 1), k, INVALID_NODE(), INVALID_NODE());
         failures[i] = std::make_pair(kMers[n - i - 1], i);
     }
+    sort(failures);
     
     // Add other nodes
     kmer_t max_diff = 1;
     for (size_t_max depth = k; depth > 0; --depth){
         last_nodes = std::move(current_nodes);
+        //std::cout << depth << std::endl;
 
         max_diff <<= 2;
         size_t_max saved_node_count = nodes.size();
@@ -226,9 +228,14 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
         
         size_t_max failure_count = failures.size();
         for (size_t_max i = 0; i < failure_count; ++i) failures[i].first = BitSuffix(failures[i].first, depth - 1);
-        sort_by_base(failures, depth - 1);
+        //sort_by_base(failures, k - depth + 1);
+        sort(failures);
         while (failures.back().second == INVALID_NODE()) failures.pop_back();
         size_t_max failure_index = failures.size() - 1;
+        /*for (size_t_max i = failure_count; i > 0; --i){
+            auto f = failures[i - 1];
+            print_kmer(f.first, depth - 1, std::cout); std::cout << ' ' << f.second << std::endl;
+        }*/
 
         std::vector<size_t_max> delayed_failure_indexes(last_node_count, INVALID_NODE());
         std::vector<size_t_max> updated_failures;
@@ -242,10 +249,12 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
             size_t_max j = i;
             while (j < last_node_count &&
                     kMers[last_nodes[i].kmer_index] - kMers[last_nodes[j].kmer_index] < max_diff){
+                        //std::cout << i << ' ' << j << std::endl;
                 last_nodes[j].parent = new_node_index;
 
                 
                 if (delayed_failure_indexes[j] != INVALID_NODE()){
+                    //std::cout << j << "->" << delayed_failure_indexes[j] << std::endl;
                     last_nodes[j].failure = delayed_failure_indexes[j]; // "Setting later"
                     if (creating_new_node){
                         updated_failures.push_back(saved_node_count + j);
@@ -256,9 +265,13 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                 }
 
                 ++j;
+                //std::cout << j << std::endl;
+                //std::cout << kMers[last_nodes[i].kmer_index] << ' ' << kMers[last_nodes[j].kmer_index] << ' ' << max_diff << std::endl;
             }
             
+            //std::cout << i << ' ' << j << std::endl;
             if (creating_new_node){
+                //std::cout << "+" << std::endl;
                 current_nodes.push_back(Node(last_nodes[i].kmer_index,
                                              size_t_max(depth - 1),
                                              size_t_max(i - shift_from_removed + saved_node_count),
@@ -269,14 +282,17 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                     size_t_max last_failure_index = failures[failure_index].second;
 
                     if (last_failure_index < saved_node_count){
+                        //std::cout << "old" << std::endl;
                         nodes[last_failure_index].failure = new_node_index;
                         updated_failures.push_back(last_failure_index);
                     }
                     else if (last_failure_index - saved_node_count < j){
+                        //std::cout << "last" << std::endl;
                         last_nodes[last_failure_index - saved_node_count].failure = new_node_index;
                         updated_failures.push_back(last_failure_index);
                     }
                     else {
+                        //std::cout << "delay" << std::endl;
                         delayed_failure_indexes[last_failure_index - saved_node_count] = new_node_index; // Set later
                     }
                     
@@ -295,6 +311,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                 ++new_node_index;
             }
             else {
+                //std::cout << "/" << std::endl;
                 for (size_t_max swap_index = i; swap_index < j; ++swap_index){
                     current_nodes.push_back(Node<size_t_max>());
                     std::swap(current_nodes.back(), last_nodes[swap_index]);
@@ -305,22 +322,6 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
 
             i = j - 1;
         }
-
-        std::cout << shift_from_removed << std::endl;
-
-        std::cout << std::endl;
-        size_t_max i = nodes.size();
-        for (Node node : last_nodes){
-            std::cout << i++ << ": ";
-            node.print(std::cout); std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        //i = 0;
-        for (Node node : current_nodes){
-            std::cout << i++ << ": ";
-            node.print(std::cout); std::cout << std::endl;
-        }
-        std::cout << std::endl;
 
         for (size_t_max update_index : updated_failures){
             if (update_index < saved_node_count){
@@ -343,10 +344,37 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
         }
 
         for (size_t_max i = 0; i < n; ++i){
-            if (failures[i].second >= saved_node_count + last_node_count){
+            if (failures[i].second != INVALID_NODE() && failures[i].second >= saved_node_count + last_node_count){
                 failures[i].second -= shift_from_removed;
             }
         }
+
+        /*size_t_max i = 0;
+        std::cout << "nodes:" << std::endl;
+        for (Node node : nodes){
+            std::cout << i++ << ":\t";
+            node.print(std::cout);
+            std::cout << ":\t";
+            for (size_t_max c = 0; c < node.depth; ++c) std::cout << to_upper(NucleotideAtIndex(kMers[node.kmer_index], k, c));
+            std::cout << std::endl;
+        }*/
+        /*std::cout << "last:" << std::endl;
+        for (Node node : last_nodes){
+            std::cout << i++ << ":\t";
+            node.print(std::cout);
+            std::cout << ":\t";
+            for (size_t_max c = 0; c < node.depth; ++c) std::cout << to_upper(NucleotideAtIndex(kMers[node.kmer_index], k, c));
+            std::cout << std::endl;
+        }*/
+        /*std::cout << "current:" << std::endl;
+        for (Node node : current_nodes){
+            std::cout << i++ << ":\t";
+            node.print(std::cout);
+            std::cout << ":\t";
+            for (size_t_max c = 0; c < node.depth; ++c) std::cout << to_upper(NucleotideAtIndex(kMers[node.kmer_index], k, c));
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;*/
     }
 
     for (Node node: current_nodes) nodes.push_back(node);
@@ -376,7 +404,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::sort(std::vector<array_element> 
     else {
         std::sort(array.begin(), kMers.end());
     }*/
-    std::sort(array.begin(), kMers.end());
+    std::sort(array.begin(), array.end());
 }
 
 /*
