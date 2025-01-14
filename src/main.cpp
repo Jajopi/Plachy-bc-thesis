@@ -232,8 +232,8 @@ int main(int argc, char **argv) {
     if (k < 32) {
         return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     } else if (k < 64) {
-        //return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+        return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     } else {
-        //return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+        return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     }
 }
