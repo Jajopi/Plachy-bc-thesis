@@ -70,22 +70,9 @@ public:
         kMers(kMers), k(k), n(kMers.size()) {};
 
     void construct_EHOG();
-    void convert_EHOG_to_HOG();
+    //void convert_EHOG_to_HOG();
     void convert_to_leaf_ranges();
     // TODO convert child ranges to leaf ranges - or skip HOG and do it in construction? Is it possible?
-    
-    inline void create() {
-        if (VERBOSE > 0) std::cout << "Constructing AC..." << std::endl;
-        //construct_AC();
-        if (VERBOSE > 1) print();
-        if (VERBOSE > 0) std::cout << "Converting to EHOG..." << std::endl;
-        //convert_AC_to_EHOG();
-        if (VERBOSE > 1 )print();
-        if (VERBOSE > 0) std::cout << "Converting to HOG..." << std::endl;
-        convert_EHOG_to_HOG();
-        if (VERBOSE > 1) print();
-        if (VERBOSE > 0) std::cout << "Done: " << nodes.size() << " nodes" << std::endl;
-    }
 
     template<typename array_element>
     void sort(std::vector<array_element>& array, size_t_max starting_base = 0);
@@ -97,100 +84,6 @@ public:
     void print_stats(std::ostream& os = std::cout);
     void print(std::ostream& os = std::cout);
 };
-
-
-// Remove non-keeped nodes
-template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::remove_redundant_edges(std::vector<bool>& keep)
-{
-    /*size_t_max node_count = nodes.size();
-    if (node_count != keep.size()) throw std::invalid_argument("Invalid removing mask passed as argument");
-
-    if (VERBOSE > 0) std::cout << "Removing redundant...";
-
-    // Contract edges from and to non-keeped nodes
-    // Ignore failure links (those we care about are already good)
-    ;
-    // Replace up-facing edges in BFS order
-    for (size_t_max i : BFS_indexes){
-        if (keep[i]){
-            // Add this node as child of its new parent
-            nodes[nodes[i].parent].children.push_back(i);
-
-            // Remove its old children
-            nodes[i].children.clear();
-            // (Also removes loop from root)
-        }
-        else {
-            // Tell all its children it is no more their parent
-            for (size_t_max child_index : nodes[i].children) nodes[child_index].parent = nodes[i].parent;
-        }
-    }
-
-    // Move keeped nodes to the beginning
-    std::vector<size_t_max> new_indexes(node_count, 0);
-    size_t_max keeped = 0;
-    for (size_t_max i = 0; i < node_count; ++i){
-        if (keep[i]){
-            std::swap(nodes[i], nodes[keeped++]);
-            new_indexes[i] = keeped - 1;
-        }
-    }
-
-    // Update all the edges to point to correct locations
-    for (size_t_max i = 0; i < keeped; ++i){
-        //nodes[i].index = new_indexes[i];
-        nodes[i].parent = new_indexes[nodes[i].parent];
-        nodes[i].failure = new_indexes[nodes[i].failure];
-        for (size_t_max& child : nodes[i].children) child = new_indexes[child];
-    }
-
-    // Update pointers from leaves
-    for (size_t_max& leaf : leaves) leaf = new_indexes[leaf];
-    
-    if (VERBOSE > 0) std::cout << " keeped " << keeped << '/' << node_count << std::endl;
-    // Get rid of non-keeped nodes
-    nodes.resize(keeped);*/
-}
-
-template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::recreate_BFS_indexes(){
-    /*if (VERBOSE > 0) std::cout << "Recreating BFS indexes...";
-
-    BFS_indexes.clear();
-    BFS_indexes.push_back(0);
-
-    std::queue<size_t_max> queue;
-    for (size_t_max child_index : nodes[0].children) queue.push(child_index);
-
-    while (!queue.empty()){
-        size_t_max index = queue.front();
-        queue.pop();
-
-        BFS_indexes.push_back(index);
-
-        for (size_t_max child_index : nodes[index].children){
-            queue.push(child_index);
-        }
-    }
-
-    if (VERBOSE > 0) std::cout << " done" << std::endl;*/
-}
-
-/*template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::precompute_full_depth(){
-    full_depth = k - 1;
-    kmer_t max_diff = 1 << 2; //1 << (2 * (k - full_depth));
-
-    kmer_t last_kmer = kMers[0];
-    for (kmer_t actual_kmer : kMers){
-        while (actual_kmer - last_kmer >= max_diff){
-            --full_depth;
-            max_diff <<= 2;
-        }
-        last_kmer = actual_kmer;
-    }
-}*/
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
@@ -248,8 +141,8 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
 
             size_t_max j = i;
             while (j < last_node_count &&
-                    kMers[last_nodes[i].kmer_index] - kMers[last_nodes[j].kmer_index] < max_diff){
-                        //std::cout << i << ' ' << j << std::endl;
+                   current_prefix == BitPrefix(kMers[last_nodes[j].kmer_index], k, depth - 1)){
+                //std::cout << i << ' ' << j << '+' << saved_node_count << std::endl;
                 last_nodes[j].parent = new_node_index;
 
                 
@@ -311,13 +204,23 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                 ++new_node_index;
             }
             else {
-                //std::cout << "/" << std::endl;
-                for (size_t_max swap_index = i; swap_index < j; ++swap_index){
-                    current_nodes.push_back(Node<size_t_max>());
-                    std::swap(current_nodes.back(), last_nodes[swap_index]);
+                /*if (depth == k){
+                    for (size_t_max copy_index = i; copy_index < j; ++copy_index){
+                        Node copy_node = last_nodes[copy_index];
+                        current_nodes.push_back(Node(copy_node.kmer_index, copy_node.depth, copy_index, size_t_max(copy_index + 1)));
+                        //current_nodes.back().failure = copy_node.failure;
+                        failures[i].second = new_node_index;
+                    }
+                    new_node_index += j - i;
                 }
-                shift_from_removed += j - i;
-                new_node_index += j - i;
+                else {*/
+                    for (size_t_max swap_index = i; swap_index < j; ++swap_index){
+                        current_nodes.push_back(Node<size_t_max>());
+                        std::swap(current_nodes.back(), last_nodes[swap_index]);
+                    }
+                    shift_from_removed += j - i;
+                    new_node_index += j - i;
+                //}
             }
 
             i = j - 1;
@@ -463,187 +366,9 @@ inline void HOGConstructer<kmer_t, size_t_max>::sort_by_base(std::vector<std::pa
 }
 
 template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
-    /*if (nodes.empty()) throw std::invalid_argument("Cannot convert empty EHOG to HOG");
-
-    // Initialize resulting array
-    size_t_max node_count = nodes.size();
-    std::vector<bool> keep(node_count, false);
-
-    // Initialize helper arrays
-    std::vector<bool> white(node_count, false);
-    std::vector<uint8_t> child_count(node_count, 0);
-    std::vector<size_t_max> favorite_proper_ancestor(node_count, 0);
-    std::vector<size_t_max> favorite_descendant(node_count, 0);
-    std::vector<size_t_max> modified_vertices;
-    // Child counts
-    for (size_t_max i = 0; i < node_count; ++i) child_count[i] = nodes[i].children.size();
-    // FavPAnc
-    for (size_t_max i : BFS_indexes){
-        size_t_max proper_ancestor = nodes[i].parent;
-        if (child_count[proper_ancestor] == 1)
-            proper_ancestor = favorite_proper_ancestor[proper_ancestor];
-        
-        favorite_proper_ancestor[i] = proper_ancestor;
-    }
-    // FavDesc
-    for (size_t_max i = node_count; i > 0; --i){
-        size_t_max descendant = BFS_indexes[i - 1];
-        if (child_count[descendant] == 1)
-            descendant = favorite_descendant[nodes[descendant].children[0]];
-        favorite_descendant[BFS_indexes[i - 1]] = descendant;
-    }
-    // Mark all leaves white
-    for (size_t_max i = 0; i < n; ++i) white[leaves[i]] = true;
-
-    keep[0] = true;
-    for (size_t_max x : leaves){
-        keep[x] = true;
-        size_t_max v = nodes[x].failure;
-        modified_vertices.clear();
-        while (v != 0){
-            size_t_max u = favorite_descendant[v];
-            if (child_count[u] != 0){
-                child_count[u] = 0;
-                keep[v] = true;
-
-                while (u != 0){
-                    modified_vertices.push_back(u);
-                    if (u != favorite_descendant[v]){
-                        --child_count[u];
-                        if (child_count[u] != 0) break;
-                    }
-
-                    u = favorite_proper_ancestor[u];
-                }
-            }
-
-            v = nodes[v].failure;
-        }
-        if (!modified_vertices.empty()){
-            for (size_t_max v : modified_vertices) ++child_count[v];// = nodes[v].children.size();
-            child_count[modified_vertices[0]] = nodes[modified_vertices[0]].children.size();
-        }
-    }
-
-    remove_redundant_edges(keep);
-    recreate_BFS_indexes();*/
-}
-
-template <typename kmer_t, typename size_t_max>
-inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_ordering(size_t_max new_run_score, size_t_max base_score) {
-    return std::vector<size_t_max>();
-    /*size_t_max node_count = nodes.size();
-    
-    std::vector<size_t_max> indexes;
-    std::vector<bool> was_used(node_count, false);
-    size_t_max used = 0;
-
-    std::vector<std::pair<size_t_max, size_t_max>> heap;
-    
-    size_t_max last_index = 0;
-    indexes.push_back(last_index);
-    was_used[last_index] = true;
-    ++used;
-
-    while (used < n){
-        heap.clear();
-        size_t_max failure_index = nodes[last_index].failure;
-        heap.push_back(std::make_pair(0, failure_index));
-        bool found_next = false;
-
-        while (!heap.empty()){
-            size_t_max current = heap[0].second;
-            size_t_max score = heap[0].first;
-            std::pop_heap(heap); heap.pop_back();
-            
-            size_t_max current_depth = nodes[current].depth;
-            failure_index = nodes[current].failure;
-            size_t_max failure_depth = nodes[failure_index].depth;
-            //bool failure_disrupts_run = nodes[next].depth == k - 1;
-            heap.push_back(std::make_pair(score + base_score * (current_depth - failure_depth) +
-                                          current_depth == k - 1 ? new_run_score : 0),
-                                          failure_index); std::push_heap(heap);
-
-            for (size_t_max child_index : nodes[current].children){
-                size_t_max child_depth = nodes[child_index].depth;
-                if (child_depth == k){
-                    if (!was_used[child_index]){
-                        last_index = child_index;
-                        found_next = true;
-                        break;
-                    }
-
-                    failure_index = nodes[child_index].failure;
-                    failure_depth = nodes[failure_index].depth;
-                    heap.push_back(std::make_pair(score + base_score * (k - failure_depth) +
-                                                  failure_depth < k - 1 ? new_run_score : 0),
-                                                  failure_index); std::push_heap(heap);
-                }
-                else {
-                    heap.push_back(std::make_pair(score, child_index))
-                }
-            }
-            
-        }
-    }
-
-    was_used[last] = true;
-    ++used;
-
-    /*std::vector<size_t_max> successors(node_count, 0);
-
-    std::vector<bool> has_in_edge(n, false), has_out_edge(n, false);
-    std::vector<std::vector<std::pair<int, size_t_max>>> outs(node_count);
-    std::vector<std::vector<size_t_max>> ins(node_count);
-
-    for (size_t_max i = node_count - 1; i >= 0; ++i){
-        size_t_max node_index = BFS_indexes[i];
-
-        size_t_max parent_index = nodes[node_index].parent;
-        //int depth_difference_parent = nodes[node_index].depth - nodes[parent_index].depth;
-        size_t_max failure_index = nodes[node_index].failure;
-        //int depth_difference_failure = nodes[node_index].depth - nodes[failure_index].depth;
-
-        if (nodes[node_index].depth == k){            
-            ins[failure_index].push_back(node_index);
-            continue;
-        }
-
-        // Iterate through children and their outs, preserve sorted order
-
-        /*size_t_max out_count = outs[node_index].size();
-        size_t_max out = 0;
-        while (out < out_count) {
-            if (!has_in_edge[outs[node_index][out].second]) break;
-            ++out;
-        }//
-        size_t_max in_count = ins[node_index].size();
-        size_t_max in = 0;
-        while (in < in_count) {
-            if (!has_out_edge[ins[node_index][in]]) break;
-            ++in;
-        }
-
-        if (in != in_count){
-            size_t_max best_out = outs[node_index][out].second;
-            size_t_max best_in = ins[node_index][in];
-            successors[best_out] = best_in;
-
-            has_out_edge[best_out] = true;
-            has_in_edge[best_in] = true;
-        }
-
-        for (size_t_max j = in + 1; j < in_count; ++j){
-            ins[failure_index].push_back(ins[node_index][j]);
-        }
-    }*/
-}
-
-template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::print_stats(std::ostream &os)
 {
-    std::cout << "Stats:" << std::endl;
+    os << "Stats:" << std::endl;
     std::vector<size_t_max> depth_count(k + 1, 0);
     std::vector<size_t_max> real_depth_count(k + 1, 0);
     std::vector<size_t_max> real_depths(nodes.size(), 0);
@@ -653,13 +378,13 @@ inline void HOGConstructer<kmer_t, size_t_max>::print_stats(std::ostream &os)
         real_depth_count[real_depths[i]]++;
         if (i == 0) break;
     }
-    std::cout << "Depths:" << std::endl;
+    os << "Depths:" << std::endl;
     for (size_t_max i=0; i <= k; i++){
-        std::cout << i << ":\t" << depth_count[i] << std::endl;
+        os << i << ":\t" << depth_count[i] << std::endl;
     }
-    std::cout << "Real depths:" << std::endl;
+    os << "Real depths:" << std::endl;
     for (size_t_max i=0; i <= k; i++){
-        std::cout << i << ":\t" << real_depth_count[i] << std::endl;
+        os << i << ":\t" << real_depth_count[i] << std::endl;
     }
 }
 
