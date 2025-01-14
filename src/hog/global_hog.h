@@ -21,9 +21,9 @@ void compute_with_hog(size_t_max type_num,
     hog.VERBOSE = 1;
     hog.construct_EHOG();
     hog.print();
-    hog.print_stats();
     hog.convert_to_leaf_ranges();
     hog.print();
+    hog.print_stats();
 
     //auto indexes = hog.compute_ordering();
     //decode_and_print_indexes(kMers, indexes, os, k);
