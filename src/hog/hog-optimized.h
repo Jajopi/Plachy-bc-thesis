@@ -44,8 +44,17 @@ inline void Node<size_t_max>::print(std::ostream &os) const {
         os << "INV";
         return;
     }
-    os << depth << '/' << kmer_index << ",\tP: " << parent << ",\tF: " << failure << ",\tCH:[ ";
-    os << child_range_begin << " - " << child_range_end << " )";
+    os << depth << '/';
+    if (kmer_index == INVALID_NODE()) os << "INV"; else os << kmer_index;
+    os << ",\tP: ";
+    if (parent == INVALID_NODE()) os << "INV"; else os << parent;
+    os << ",\tF: ";
+    if (failure == INVALID_NODE()) os << "INV"; else os << failure;
+    os << ",\tCH:[ ";
+    if (child_range_begin == INVALID_NODE()) os << "INV"; else os << child_range_begin;
+    os << " - ";
+    if (child_range_end == INVALID_NODE()) os << "INV"; else os << child_range_end;
+    os << " )";
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -82,7 +91,9 @@ public:
     std::vector<size_t_max> compute_ordering(size_t_max new_run_score, size_t_max base_score = 1);
 
     void print_stats(std::ostream& os = std::cout);
-    void print(std::ostream& os = std::cout);
+    void print_sorted(std::ostream& os = std::cout);
+    void print_topological(std::ostream& os = std::cout);
+    void print_topological(std::ostream& os, size_t_max root, size_t_max depth);
 };
 
 template <typename kmer_t, typename size_t_max>
@@ -108,12 +119,11 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
     sort(failures);
     
     // Add other nodes
-    kmer_t max_diff = 1;
     for (size_t_max depth = k; depth > 0; --depth){
         last_nodes = std::move(current_nodes);
-        //std::cout << depth << std::endl;
+        //std::cout << depth << ' ';
+        //std::cout.flush();
 
-        max_diff <<= 2;
         size_t_max saved_node_count = nodes.size();
         size_t_max last_node_count = last_nodes.size();
         size_t_max new_node_index = saved_node_count + last_node_count;
@@ -204,23 +214,24 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
                 ++new_node_index;
             }
             else {
-                /*if (depth == k){
+                //std::cout << i + saved_node_count << ' ' << j << new_node_index << std::endl;
+                if (depth == k){
                     for (size_t_max copy_index = i; copy_index < j; ++copy_index){
                         Node copy_node = last_nodes[copy_index];
                         current_nodes.push_back(Node(copy_node.kmer_index, copy_node.depth, copy_index, size_t_max(copy_index + 1)));
                         //current_nodes.back().failure = copy_node.failure;
-                        failures[i].second = new_node_index;
+                        failures[copy_index].second = new_node_index;
+                        ++new_node_index;
                     }
-                    new_node_index += j - i;
                 }
-                else {*/
+                else {
                     for (size_t_max swap_index = i; swap_index < j; ++swap_index){
                         current_nodes.push_back(Node<size_t_max>());
                         std::swap(current_nodes.back(), last_nodes[swap_index]);
                     }
                     shift_from_removed += j - i;
                     new_node_index += j - i;
-                //}
+                }
             }
 
             i = j - 1;
@@ -283,18 +294,29 @@ inline void HOGConstructer<kmer_t, size_t_max>::construct_EHOG() {
     for (Node node: current_nodes) nodes.push_back(node);
 
     nodes.shrink_to_fit();
+    std::cout << std::endl;
+
+    size_t_max node_count = nodes.size();
+    for (size_t_max i = n; i < node_count; ++i){
+        //if (nodes[i].depth == k) continue;
+        for (size_t_max c = nodes[i].child_range_begin; c < nodes[i].child_range_end; ++c){
+            nodes[c].parent = i;
+        }
+    }
 }
 
 template <typename kmer_t, typename size_t_max>
 inline void HOGConstructer<kmer_t, size_t_max>::convert_to_leaf_ranges() {
-    for (size_t_max i = 0; i < n; ++i){
-        nodes[i].child_range_begin = i;
-        nodes[i].child_range_end = i + 1;
-    }
     size_t_max node_count = nodes.size();
-    for (size_t_max i = n; i < node_count; ++i){
-        nodes[i].child_range_begin = nodes[nodes[i].child_range_begin].child_range_begin;
-        nodes[i].child_range_end = nodes[nodes[i].child_range_end - 1].child_range_end;
+    for (size_t_max i = 0; i < node_count; ++i){
+        if (nodes[i].depth == k){
+            nodes[i].child_range_begin = i;
+            nodes[i].child_range_end = i + 1;
+        }
+        else {
+            nodes[i].child_range_begin = nodes[nodes[i].child_range_begin].child_range_begin;
+            nodes[i].child_range_end = nodes[nodes[i].child_range_end - 1].child_range_end;
+        }
     }
 }
 
@@ -389,7 +411,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::print_stats(std::ostream &os)
 }
 
 template <typename kmer_t, typename size_t_max>
-inline void HOGConstructer<kmer_t, size_t_max>::print(std::ostream& os) {
+inline void HOGConstructer<kmer_t, size_t_max>::print_sorted(std::ostream& os) {
     size_t_max i = 0;
     for (Node node : nodes){
         os << i++ << ":\t";
@@ -397,5 +419,37 @@ inline void HOGConstructer<kmer_t, size_t_max>::print(std::ostream& os) {
         os << ":\t";
         for (size_t_max c = 0; c < node.depth; ++c) os << to_upper(NucleotideAtIndex(kMers[node.kmer_index], k, c));
         os << std::endl;
+    }
+}
+
+template <typename kmer_t, typename size_t_max>
+inline void HOGConstructer<kmer_t, size_t_max>::print_topological(std::ostream& os) {
+    print_topological(os, nodes.size() - 1, 0);
+}
+
+template <typename kmer_t, typename size_t_max>
+inline void HOGConstructer<kmer_t, size_t_max>::print_topological(std::ostream& os, size_t_max root, size_t_max depth) {
+    Node node = nodes[root];
+    
+    for (size_t_max i = 0; i < depth; ++i) os << "|  ";
+    os << "|->";
+    
+    os << root << ":\t";
+    node.print(os);
+    os << ":\t";
+    for (size_t_max c = 0; c < node.depth; ++c) os << to_upper(NucleotideAtIndex(kMers[node.kmer_index], k, c));
+
+    if (node.parent != INVALID_NODE()){
+        Node parent = nodes[node.parent];
+        if (parent.child_range_begin > root || parent.child_range_end <= root) os << "xxx";
+    }
+    
+    os << std::endl;
+
+    if (root < n) return;
+    
+    for (size_t_max i = node.child_range_begin; i < node.child_range_end; ++i){
+        if (i == INVALID_NODE()) break;
+        print_topological(os, i, depth + 1);
     }
 }
