@@ -20,9 +20,10 @@ void compute_with_hog(size_t_max type_num,
     auto hog = HOGConstructer<kmer_t, size_t_max>(kMers, k); // TODO handle complements
     hog.VERBOSE = 1;
     hog.construct_EHOG();
-    //hog.print();
-    //hog.convert_to_leaf_ranges();
-    //hog.print();
+    hog.print_topological();
+    hog.print_sorted();
+    hog.convert_to_leaf_ranges();
+    //hog.print_sorted();
     hog.print_stats();
 
     //auto indexes = hog.compute_ordering();
