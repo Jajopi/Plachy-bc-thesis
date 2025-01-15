@@ -94,18 +94,25 @@ kmer_t ReverseComplement(kmer_t kMer, int k) {
     return (((kmer_t)word_reverse_complement(kMer)) >> ((sizeof(kMer)<<3) - (k << 1))) & ((kmer_t(1) << (k << 1)) - kmer_t(1));
 }
 
-const char letters[4] {'A', 'C', 'G', 'T'};
-
-/// Return the index-th nucleotide from the encoded k-mer.
-template <typename kmer_t>
-inline char NucleotideAtIndex(kmer_t encoded, int k, int index) {
-    return letters[(uint64_t)((encoded >> ((k - index - kmer_t(1)) << kmer_t(1))) & kmer_t(3))];
-}
-
 /// Return the number 0 - 3 correcponding to index-th nucleotide from the encoded k-mer.
 template <typename kmer_t>
 inline uint8_t NucleotideIndexAtIndex(kmer_t encoded, int k, int index) {
     return (uint8_t)((encoded >> ((k - index - kmer_t(1)) << kmer_t(1))) & kmer_t(3));
+}
+template <typename kmer_t, typename other>
+inline uint8_t NucleotideIndexAtIndex(std::pair<kmer_t, other> p, int k, int index) {
+    return (uint8_t)((p.first >> ((k - index - kmer_t(1)) << kmer_t(1))) & kmer_t(3));
+}
+
+const char letters[4] {'A', 'C', 'G', 'T'};
+/// Return the index-th nucleotide from the encoded k-mer.
+template <typename kmer_t>
+inline char NucleotideAtIndex(kmer_t encoded, int k, int index) {
+    return letters[NucleotideIndexAtIndex(encoded, k, index)];
+}
+template <typename kmer_t, typename other>
+inline char NucleotideAtIndex(std::pair<kmer_t, other> p, int k, int index) {
+    return letters[NucleotideIndexAtIndex(p, k, index)];
 }
 
 /// Convert the encoded KMer representation to string.
@@ -122,6 +129,13 @@ std::string NumberToKMer(kmer_t encoded, int length) {
 }
 
 char to_lower(char c){
+    return c | 32;
+}
+char to_upper(char c){ // TODO fix
+    return c & 31;
+}
+/*
+char to_lower(char c){
     return c >= 'a' ?
         c :
         c + 32;
@@ -130,7 +144,7 @@ char to_upper(char c){
     return c >= 'a'?
         c - 32 :
         c;
-}
+}*/
 
 template <typename kmer_t>
 void print_kmer_masked(kmer_t kmer, size_t k, std::ostream& os, size_t prefix = 0){
