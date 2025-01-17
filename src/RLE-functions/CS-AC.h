@@ -1,15 +1,16 @@
 #pragma once
 
 #include <vector>
-#include <queue>
 #include <algorithm>
 #include <limits>
+#include <iostream>
+#include <iomanip>
 
 #include "../kmers.h"
 
 
 template<typename size_t_max>
-struct Node {
+struct CS_AC_Node {
     size_t_max kmer_index;
     size_t_max depth;
     size_t_max parent;
@@ -19,12 +20,12 @@ struct Node {
 
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
 
-    Node(size_t_max kmer_index, size_t_max depth, size_t_max parent) :
+    CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max parent) :
         kmer_index(kmer_index), depth(depth), parent(parent),
         failure(INVALID_NODE()),
         child_range_begin(INVALID_NODE()), child_range_end(INVALID_NODE()) {};
 
-    Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max last_child) :
+    CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max last_child) :
         kmer_index(kmer_index), depth(depth), parent(INVALID_NODE()),
         failure(INVALID_NODE()),
         child_range_begin(first_child), child_range_end(last_child) {};
@@ -33,7 +34,7 @@ struct Node {
 };
 
 template <typename size_t_max>
-inline void Node<size_t_max>::print(std::ostream &os) const {
+inline void CS_AC_Node<size_t_max>::print(std::ostream &os) const {
     os << depth << '/';
     if (kmer_index == INVALID_NODE()) os << "INV"; else os << kmer_index;
     os << ",\tP: ";
@@ -50,13 +51,16 @@ inline void Node<size_t_max>::print(std::ostream &os) const {
 
 template <typename kmer_t, typename size_t_max>
 class CuttedSortedAC {
+    using Node = CS_AC_Node<size_t_max>;
+
     std::vector<kmer_t> kMers;
-    std::vector<Node<size_t_max>> nodes;
+    std::vector<Node> nodes;
     //std::vector<std::pair<size_t_max, size_t_max>> leaf_intervals;
     
     size_t_max K; // kmer-length
     size_t_max N; // number of kmers, number of leaves
-    size_t_max DEPTH_CUTOFF; // last (minimal) depth to be reached
+    size_t_max DEPTH_CUTOFF; // first not-to-be-reached depth
+    bool COMPLEMENTS; // whether or not complements are used
     
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
     static inline kmer_t BIGGEST_KMER() { return std::numeric_limits<kmer_t>::max(); };
@@ -68,11 +72,11 @@ class CuttedSortedAC {
 
     void resort_and_shorten_failures(std::vector<std::pair<kmer_t, size_t_max>> &array, size_t_max depth);
 public:
-    CuttedSortedAC(const std::vector<kmer_t>& kMers, size_t_max K, size_t_max DEPTH_CUTOFF = 0) :
-        kMers(kMers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF) {};
+    CuttedSortedAC(const std::vector<kmer_t>& kMers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
+        kMers(kMers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) {};
 
-    CuttedSortedAC(std::vector<kmer_t>&& kMers, size_t_max K, size_t_max depth_cutoff = 0) :
-        kMers(std::move(kMers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF) {};
+    CuttedSortedAC(std::vector<kmer_t>&& kMers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
+        kMers(std::move(kMers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) {};
 
     void construct_graph();
     void construct_leaf_ranges();
@@ -93,25 +97,26 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
 
     nodes.reserve((K - DEPTH_CUTOFF) * N);
 
-    std::vector<Node<size_t_max>> current_nodes;
+    std::vector<Node> current_nodes;
     current_nodes.reserve(N);
     
     std::vector<std::pair<kmer_t, size_t_max>> failures; // suffix, last index
     failures.resize(N);
     
     // Add leaves
-    std::cout << K; std::cout.flush();
     for (size_t_max i = 0; i < N; ++i){
         current_nodes.emplace_back(size_t_max(N - i - 1), K, i, i + 1);
         failures[i] = std::make_pair(kMers[N - i - 1], i);
     }
 
-    std::cout << " Sorting failures..."; std::cout.flush();
-    sort(failures);
+    //std::cout << "Sorting failures..." << std::endl;
+    //sort(failures);
+
+    std::cout << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; std::cout.flush();
 
     // Add other nodes
     for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
-        std::cout << ' ' << depth; std::cout.flush();
+        std::cout << "\b\b\b" << std::setfill(' ') << std::setw(3) << depth; std::cout.flush();
         
         size_t_max last_node_count = nodes.size();
         for (Node node: current_nodes) nodes.push_back(std::move(node));
@@ -161,9 +166,11 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
             i = j - 1;
         }
     }
-    std::cout << "... Stopped at " << DEPTH_CUTOFF << std::endl;
+    std::cout << "\b\b\b" << DEPTH_CUTOFF;
 
     for (Node node: current_nodes) nodes.push_back(std::move(node));
+
+    std::cout << "\b\b\b" << "Done" << std::endl;
 
     nodes.emplace_back(0, 0, 0, nodes.size());
     size_t_max root_node = nodes.size() - 1;
@@ -276,13 +283,13 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_stats(std::ostream &os)
 {
     os << "Computing stats..." << std::endl;
     std::vector<size_t_max> depth_count(K + 1, 0);
-    std::vector<size_t_max> real_depth_count(K + 1, 0);
-    std::vector<size_t_max> real_depths(nodes.size(), 0);
+    //std::vector<size_t_max> real_depth_count(K + 1, 0);
+    //std::vector<size_t_max> real_depths(nodes.size(), 0);
     
     for (size_t_max i = nodes.size() - 1; i >= 0; --i){
         depth_count[nodes[i].depth]++;
-        if (i != nodes.size() - 1) real_depths[i] = real_depths[nodes[i].parent] + 1;
-        real_depth_count[real_depths[i]]++;
+        //if (i != nodes.size() - 1) real_depths[i] = real_depths[nodes[i].parent] + 1;
+        //real_depth_count[real_depths[i]]++;
         if (i == 0) break;
     }
 
@@ -291,11 +298,11 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_stats(std::ostream &os)
         if (depth_count[i] == 0) continue;
         os << i << ":\t" << depth_count[i] << std::endl;
     }
-    os << "Real depths:" << std::endl;
+    /*os << "Real depths:" << std::endl;
     for (size_t_max i = 0; i <= K; i++){
         if (real_depth_count[i] == 0) break;
         os << i << ":\t" << real_depth_count[i] << std::endl;
-    }
+    }*/
 }
 
 template <typename kmer_t, typename size_t_max>
