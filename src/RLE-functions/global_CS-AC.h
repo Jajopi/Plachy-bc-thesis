@@ -13,8 +13,7 @@
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
 #ifdef USING_WINDOWS // NOT TESTED
     #include <windows.h>
-    size_t getTotalSystemMemory()
-    {
+    size_t getTotalSystemMemory(){
         MEMORYSTATUSEX status;
         status.dwLength = sizeof(status);
         GlobalMemoryStatusEx(&status);
@@ -22,8 +21,7 @@
     }
 #else // NOT TESTED EITHER except for my own computer
     #include <unistd.h>
-    size_t getTotalSystemMemory()
-    {
+    size_t getTotalSystemMemory(){
         size_t pages = sysconf(_SC_PHYS_PAGES);
         size_t page_size = sysconf(_SC_PAGE_SIZE);
         return pages * page_size;
@@ -35,20 +33,22 @@ size_t_max compute_max_depth(size_t_max number_size_type, std::vector<kmer_t>& k
     size_t available_memory = getTotalSystemMemory() - RESERVED_MEMORY_GB * size_t(1 << 30);
     std::cout << "Available memory: " << available_memory << std::endl;
 
-    size_t memory_used_per_kmer = sizeof(kmer_t) // kMers
-                                + sizeof(kmer_t) + sizeof(size_t_max) // failures
-                                + sizeof(CS_AC_Node<size_t_max>) * 2 // top two levels of nodes
-                                + sizeof(CS_AC_Node<size_t_max>); // current_nodes
-    size_t memory_used_by_kmers = memory_used_per_kmer * kMers.size() * (1 + complements);
+    size_t memory_reserved_per_kmer = sizeof(kmer_t) // kMers
+                                + 2 * sizeof(size_t_max); // failures
+    size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kMers.size() * (1 + complements);
     
-    size_t expected_memory_used_by_solving = 0; // TODO add
+    size_t expected_memory_reserved_for_solving = 0; // TODO add
     
-    if (available_memory < memory_used_by_kmers + expected_memory_used_by_solving){
+    if (available_memory < memory_reserved_for_kmers + expected_memory_reserved_for_solving){
         throw std::invalid_argument("Not enough memory for computation with complements!");
     }
 
-    size_t available_nodes = (available_memory - memory_used_by_kmers - expected_memory_used_by_solving) / sizeof(CS_AC_Node<size_t_max>);
-    size_t available_depth = available_nodes / kMers.size() + 2; // plus top two levels
+    size_t available_nodes = (available_memory - memory_reserved_for_kmers - expected_memory_reserved_for_solving) / sizeof(CS_AC_Node<size_t_max>);
+    size_t available_depth = available_nodes / kMers.size();
+
+    if (available_depth < 3){ // at least two top levels + current_nodes
+        throw std::invalid_argument("Not enough memory for computation!");
+    }
 
     return std::min(available_depth,
                     size_t(std::numeric_limits<size_t_max>::max()));
@@ -66,7 +66,7 @@ void compute_with_cs_ac(size_t_max number_size_type,
     auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, depth_cutoff, complements);
     csac.construct_graph();
     //csac.print_topological();
-    //csac.construct_leaf_ranges();
+    csac.construct_leaf_ranges();
     //csac.print_sorted();
     csac.print_stats();
 

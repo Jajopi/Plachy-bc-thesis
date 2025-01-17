@@ -70,7 +70,7 @@ class CuttedSortedAC {
     template<typename array_element>
     void radix_sort(std::vector<array_element>& array, size_t_max begin, size_t_max end, size_t_max starting_base = 0);
 
-    void resort_and_shorten_failures(std::vector<std::pair<kmer_t, size_t_max>> &array, size_t_max depth);
+    void resort_and_shorten_failures(std::vector<std::pair<size_t_max, size_t_max>> &failures, size_t_max depth);
 public:
     CuttedSortedAC(const std::vector<kmer_t>& kMers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
         kMers(kMers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) {};
@@ -97,16 +97,13 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
 
     nodes.reserve((K - DEPTH_CUTOFF) * N);
 
-    std::vector<Node> current_nodes;
-    current_nodes.reserve(N);
-    
-    std::vector<std::pair<kmer_t, size_t_max>> failures; // suffix, last index
-    failures.resize(N);
+    std::vector<Node> current_nodes; current_nodes.reserve(N);
+    std::vector<std::pair<size_t_max, size_t_max>> failures(N); // kmer index, last index
     
     // Add leaves
     for (size_t_max i = 0; i < N; ++i){
         current_nodes.emplace_back(size_t_max(N - i - 1), K, i, i + 1);
-        failures[N - i - 1] = std::make_pair(kMers[N - i - 1], i);
+        failures[i] = std::make_pair(i, N - i - 1);
     }
 
     std::cout << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; std::cout.flush();
@@ -126,9 +123,9 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
 
         for (size_t_max i = last_node_count; i < node_count; ++i){
             kmer_t current_prefix = BitPrefix(kMers[nodes[i].kmer_index], K, depth);
-            while (failure_index > 0 && current_prefix < failures[failure_index].first) --failure_index;
+            while (failure_index > 0 && current_prefix < BitSuffix(kMers[failures[failure_index].first], depth)) --failure_index;
 
-            bool new_node_on_failure_path = (current_prefix == failures[failure_index].first);
+            bool new_node_on_failure_path = (current_prefix == BitSuffix(kMers[failures[failure_index].first], depth));
 
             size_t_max j = i;
             while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index], K, depth)){
@@ -142,28 +139,24 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
                                        size_t_max(j));
             
             if (new_node_on_failure_path){
-                bool first_similar_failure = true;
-                while (current_prefix == failures[failure_index].first){
-                    nodes[failures[failure_index].second].failure = new_node_index;
-                    
-                    if (first_similar_failure){
-                        first_similar_failure = false;
-                        failures[failure_index].second = new_node_index;
-                    }
-                    else {
-                        failures[failure_index] = std::make_pair(BIGGEST_KMER(), INVALID_NODE()); // Will be last, lost
-                    }
+                nodes[failures[failure_index].second].failure = new_node_index;
+                failures[failure_index].second = new_node_index;
 
-                    if (failure_index == 0) break;
+                while (failure_index != 0 &&
+                       current_prefix == BitSuffix(kMers[failures[failure_index - 1].first], depth)){
                     --failure_index;
+                    
+                    nodes[failures[failure_index].second].failure = new_node_index;
+                    failures[failure_index] = std::make_pair(INVALID_NODE(), INVALID_NODE()); // Will be last, lost
                 }
+                --failure_index;
             }
             
             ++new_node_index;
             i = j - 1;
         }
     }
-    std::cout << "\b\b\b" << std::setfill(' ') << std::setw(3) << DEPTH_CUTOFF;
+    std::cout << "\b\b\b" << std::setfill(' ') << std::setw(3) << DEPTH_CUTOFF << std::endl;
 
     for (Node node: current_nodes) nodes.push_back(std::move(node));
 
@@ -172,11 +165,14 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
     for (size_t_max i = root_node - 1; i >= N; --i){
         if (nodes[i].parent == INVALID_NODE()){
             nodes[i].parent = root_node;
-            nodes[i].failure = root_node;
         }
         else break;
     }
-    std::cout << "\b\b\b" << "Done" << std::endl;
+    for (size_t_max i = 0; i < root_node; ++i){
+        if (nodes[i].failure == INVALID_NODE()) nodes[i].failure = root_node;
+    }
+
+    std::cout << "Graph construction finished." << std::endl;
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -193,11 +189,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_leaf_ranges() {
 template <typename kmer_t, typename size_t_max>
 template <typename array_element>
 inline void CuttedSortedAC<kmer_t, size_t_max>::sort(std::vector<array_element> &array, size_t_max starting_base) {
-    if (array.size() > 2 * size_t_max(1 << (K - starting_base))){
-        std::cout << "Using radix sort" << std::endl;
+    if (array.size() > size_t_max(1 << (K - starting_base))){
+        std::cout << "Using in-place radix sort..." << std::endl;
         radix_sort(array, 0, array.size(), starting_base);
     }
     else {
+        std::cout << "Using std::sort..." << std::endl;
         std::sort(array.begin(), array.end());
     }
 }
@@ -232,26 +229,23 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::radix_sort(std::vector<array_ele
 }
 
 template <typename kmer_t, typename size_t_max>
-inline void CuttedSortedAC<kmer_t, size_t_max>::resort_and_shorten_failures(std::vector<std::pair<kmer_t, size_t_max>> &array, size_t_max depth) {
-    size_t_max count = array.size();
+inline void CuttedSortedAC<kmer_t, size_t_max>::resort_and_shorten_failures(std::vector<std::pair<size_t_max, size_t_max>> &failures, size_t_max depth) {
+    size_t_max count = failures.size();
 
     size_t_max skipped = 0;
     for (size_t_max i = 0; i < count; ++i){
-        if (array[i].second == INVALID_NODE()) ++skipped;
-        else array[i - skipped] = array[i];
+        if (failures[i].second == INVALID_NODE()) ++skipped;
+        else failures[i - skipped] = failures[i];
     }
 
     count -= skipped;
-    array.resize(count);
-    std::vector<std::pair<kmer_t, size_t_max>> sorted_array;
-    sorted_array.resize(count);
+    failures.resize(count);
+    std::vector<std::pair<size_t_max, size_t_max>> sorted_failures(count);
 
     size_t_max end_indexes[4] = {0, 0, 0, 0}; // Starts of: A, C, G, T
     for (size_t_max i = 0; i < count; ++i){
-        uint8_t base_index = NucleotideIndexAtIndex(array[i], K, K - depth - 1);
+        uint8_t base_index = NucleotideIndexAtIndex(kMers[failures[i].first], K, K - depth - 1);
         ++end_indexes[base_index];
-
-        array[i].first = BitSuffix(array[i].first, depth);
     }
 
     size_t_max start_indexes[4] = {0, 0, 0, 0};
@@ -262,16 +256,18 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::resort_and_shorten_failures(std:
 
     for (size_t_max s = 0; s < count; ++s){
         uint8_t best_i = 4;
+        kmer_t best_suffix;
         for (uint8_t i = 0; i < 4; ++i){
             if (start_indexes[i] == end_indexes[i]) continue;
-            if (best_i == 4 || array[start_indexes[best_i]].first > array[start_indexes[i]].first){
+            if (best_i == 4 || best_suffix > BitSuffix(kMers[failures[start_indexes[i]].first], depth)){
                 best_i = i;
+                best_suffix = BitSuffix(kMers[failures[start_indexes[best_i]].first], depth);
             }
         }
-        sorted_array[s] = array[start_indexes[best_i]++];
+        sorted_failures[s] = failures[start_indexes[best_i]++];
     }
 
-    array = std::move(sorted_array);
+    failures = std::move(sorted_failures);
 }
 
 // Printing
