@@ -86,8 +86,9 @@ public:
 
 template <typename kmer_t, typename size_t_max>
 inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
-    if (!nodes.empty()) throw std::invalid_argument("Graph has already been constructed.");
+    if (!nodes.empty()) throw std::invalid_argument("Graph has already been constructed!");
 
+    std::cout << "Preparing..." << std::endl;
     sort(kMers);
 
     nodes.reserve((K - DEPTH_CUTOFF) * N);
@@ -99,15 +100,18 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
     failures.resize(N);
     
     // Add leaves
+    std::cout << K; std::cout.flush();
     for (size_t_max i = 0; i < N; ++i){
         current_nodes.emplace_back(size_t_max(N - i - 1), K, i, i + 1);
         failures[i] = std::make_pair(kMers[N - i - 1], i);
     }
+
+    std::cout << " Sorting failures..."; std::cout.flush();
     sort(failures);
 
     // Add other nodes
-    for (size_t_max depth = K; depth > DEPTH_CUTOFF; --depth){
-        std::cout << depth << ' '; std::cout.flush();
+    for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
+        std::cout << ' ' << depth; std::cout.flush();
         
         size_t_max last_node_count = nodes.size();
         for (Node node: current_nodes) nodes.push_back(std::move(node));
@@ -119,19 +123,19 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
         size_t_max failure_index = failures.size() - 1;
 
         for (size_t_max i = last_node_count; i < node_count; ++i){
-            kmer_t current_prefix = BitPrefix(kMers[nodes[i].kmer_index], K, depth - 1);
+            kmer_t current_prefix = BitPrefix(kMers[nodes[i].kmer_index], K, depth);
             while (failure_index > 0 && current_prefix < failures[failure_index].first) --failure_index;
 
             bool new_node_on_failure_path = (current_prefix == failures[failure_index].first);
 
             size_t_max j = i;
-            while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index], K, depth - 1)){
+            while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index], K, depth)){
                 nodes[j].parent = new_node_index;
                 ++j;
             }
 
             current_nodes.emplace_back(nodes[i].kmer_index,
-                                       size_t_max(depth - 1),
+                                       size_t_max(depth),
                                        size_t_max(i),
                                        size_t_max(j));
             
@@ -157,7 +161,9 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
             i = j - 1;
         }
     }
-    std::cout << std::endl;
+    std::cout << "... Stopped at " << DEPTH_CUTOFF << std::endl;
+
+    for (Node node: current_nodes) nodes.push_back(std::move(node));
 
     nodes.emplace_back(0, 0, 0, nodes.size());
     size_t_max root_node = nodes.size() - 1;
@@ -237,10 +243,10 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::resort_and_shorten_failures(std:
 
     size_t_max end_indexes[4] = {0, 0, 0, 0}; // Starts of: A, C, G, T
     for (size_t_max i = 0; i < count; ++i){
-        uint8_t base_index = NucleotideIndexAtIndex(array[i], K, K - depth);
+        uint8_t base_index = NucleotideIndexAtIndex(array[i], K, K - depth - 1);
         ++end_indexes[base_index];
 
-        array[i].first = BitSuffix(array[i].first, depth - 1);
+        array[i].first = BitSuffix(array[i].first, depth);
     }
 
     size_t_max start_indexes[4] = {0, 0, 0, 0};
@@ -268,22 +274,26 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::resort_and_shorten_failures(std:
 template <typename kmer_t, typename size_t_max>
 inline void CuttedSortedAC<kmer_t, size_t_max>::print_stats(std::ostream &os)
 {
-    os << "Stats:" << std::endl;
+    os << "Computing stats..." << std::endl;
     std::vector<size_t_max> depth_count(K + 1, 0);
     std::vector<size_t_max> real_depth_count(K + 1, 0);
     std::vector<size_t_max> real_depths(nodes.size(), 0);
+    
     for (size_t_max i = nodes.size() - 1; i >= 0; --i){
         depth_count[nodes[i].depth]++;
         if (i != nodes.size() - 1) real_depths[i] = real_depths[nodes[i].parent] + 1;
         real_depth_count[real_depths[i]]++;
         if (i == 0) break;
     }
+
     os << "Depths:" << std::endl;
     for (size_t_max i = 0; i <= K; i++){
+        if (depth_count[i] == 0) continue;
         os << i << ":\t" << depth_count[i] << std::endl;
     }
     os << "Real depths:" << std::endl;
     for (size_t_max i = 0; i <= K; i++){
+        if (real_depth_count[i] == 0) break;
         os << i << ":\t" << real_depth_count[i] << std::endl;
     }
 }
