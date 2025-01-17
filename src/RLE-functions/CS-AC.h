@@ -189,14 +189,14 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_leaf_ranges() {
 template <typename kmer_t, typename size_t_max>
 template <typename array_element>
 inline void CuttedSortedAC<kmer_t, size_t_max>::sort(std::vector<array_element> &array, size_t_max starting_base) {
-    if (array.size() > size_t_max(1 << (K - starting_base))){
+    /*if (array.size() > size_t_max(1 << (K - starting_base))){
         std::cout << "Using in-place radix sort..." << std::endl;
         radix_sort(array, 0, array.size(), starting_base);
     }
-    else {
+    else {*/
         std::cout << "Using std::sort..." << std::endl;
         std::sort(array.begin(), array.end());
-    }
+    //}
 }
 
 //in-place radix sort as in https://stackoverflow.com/questions/463105/in-place-radix-sort

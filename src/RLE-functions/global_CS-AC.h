@@ -8,7 +8,7 @@
 
 #include "CS-AC.h"
 
-#define RESERVED_MEMORY_GB 6
+#define RESERVED_MEMORY_GB 4
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
 #ifdef USING_WINDOWS // NOT TESTED
