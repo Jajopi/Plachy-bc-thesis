@@ -106,11 +106,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
     // Add leaves
     for (size_t_max i = 0; i < N; ++i){
         current_nodes.emplace_back(size_t_max(N - i - 1), K, i, i + 1);
-        failures[i] = std::make_pair(kMers[N - i - 1], i);
+        failures[N - i - 1] = std::make_pair(kMers[N - i - 1], i);
     }
-
-    //std::cout << "Sorting failures..." << std::endl;
-    //sort(failures);
 
     std::cout << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; std::cout.flush();
 
@@ -166,20 +163,20 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
             i = j - 1;
         }
     }
-    std::cout << "\b\b\b" << DEPTH_CUTOFF;
+    std::cout << "\b\b\b" << std::setfill(' ') << std::setw(3) << DEPTH_CUTOFF;
 
     for (Node node: current_nodes) nodes.push_back(std::move(node));
 
-    std::cout << "\b\b\b" << "Done" << std::endl;
-
-    nodes.emplace_back(0, 0, 0, nodes.size());
+    nodes.emplace_back(0, 0, nodes.size() - current_nodes.size(), nodes.size());
     size_t_max root_node = nodes.size() - 1;
     for (size_t_max i = root_node - 1; i >= N; --i){
-        if (nodes[i].parent == INVALID_NODE()) nodes[i].parent = root_node;
+        if (nodes[i].parent == INVALID_NODE()){
+            nodes[i].parent = root_node;
+            nodes[i].failure = root_node;
+        }
         else break;
     }
-
-    nodes.shrink_to_fit();
+    std::cout << "\b\b\b" << "Done" << std::endl;
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -197,6 +194,7 @@ template <typename kmer_t, typename size_t_max>
 template <typename array_element>
 inline void CuttedSortedAC<kmer_t, size_t_max>::sort(std::vector<array_element> &array, size_t_max starting_base) {
     if (array.size() > 2 * size_t_max(1 << (K - starting_base))){
+        std::cout << "Using radix sort" << std::endl;
         radix_sort(array, 0, array.size(), starting_base);
     }
     else {
@@ -283,13 +281,9 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_stats(std::ostream &os)
 {
     os << "Computing stats..." << std::endl;
     std::vector<size_t_max> depth_count(K + 1, 0);
-    //std::vector<size_t_max> real_depth_count(K + 1, 0);
-    //std::vector<size_t_max> real_depths(nodes.size(), 0);
     
     for (size_t_max i = nodes.size() - 1; i >= 0; --i){
         depth_count[nodes[i].depth]++;
-        //if (i != nodes.size() - 1) real_depths[i] = real_depths[nodes[i].parent] + 1;
-        //real_depth_count[real_depths[i]]++;
         if (i == 0) break;
     }
 
@@ -298,11 +292,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_stats(std::ostream &os)
         if (depth_count[i] == 0) continue;
         os << i << ":\t" << depth_count[i] << std::endl;
     }
-    /*os << "Real depths:" << std::endl;
-    for (size_t_max i = 0; i <= K; i++){
-        if (real_depth_count[i] == 0) break;
-        os << i << ":\t" << real_depth_count[i] << std::endl;
-    }*/
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -327,7 +316,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_topological(std::ostream& 
     Node node = nodes[root];
     
     for (size_t_max i = 0; i < depth; ++i) os << "|  ";
-    os << "|->";
+    os << "+->";
     
     os << root << ":\t";
     node.print(os);
@@ -336,7 +325,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_topological(std::ostream& 
 
     if (node.parent != INVALID_NODE()){
         Node parent = nodes[node.parent];
-        if (parent.child_range_begin > root || parent.child_range_end <= root) os << "xxx";
+        if (parent.child_range_begin > root || parent.child_range_end <= root) os << " xxx";
     }
     
     os << std::endl;
