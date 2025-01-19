@@ -128,23 +128,13 @@ std::string NumberToKMer(kmer_t encoded, int length) {
     return ret;
 }
 
+// Happily reimplementing the wheel
 char to_lower(char c){
     return c | 32;
 }
-char to_upper(char c){ // TODO fix
-    return c & 31;
-}
-/*
-char to_lower(char c){
-    return c >= 'a' ?
-        c :
-        c + 32;
-}
 char to_upper(char c){
-    return c >= 'a'?
-        c - 32 :
-        c;
-}*/
+    return c & 95;
+}
 
 template <typename kmer_t, typename size_t_max>
 void print_kmer_masked(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max prefix = 0){
@@ -181,7 +171,8 @@ size_t_max compute_max_overlap(kmer_t kmer1, kmer_t kmer2, size_t_max k){
 }
 
 template <typename kmer_t, typename size_t_max>
-size_t_max decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vector<size_t_max>& indexes, std::ostream& os, size_t_max k, bool encode_mask = true){
+size_t_max decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vector<size_t_max>& indexes, std::ostream& os, size_t_max k,
+    bool encode_mask = true, bool count_not_print = false){
     size_t_max total_length = 0;
     
     kmer_t actual_kmer = kMers[indexes[0]], new_kmer = kMers[indexes[1]];
@@ -189,15 +180,15 @@ size_t_max decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std:
         new_kmer = kMers[indexes[i]];
         
         size_t_max ov = compute_max_overlap(actual_kmer, new_kmer, k);
-        if (encode_mask) print_kmer_masked(actual_kmer, k, os, size_t_max(k - ov));
-        else print_kmer(actual_kmer, k, os, size_t_max(k - ov));
+        if (encode_mask && !count_not_print) print_kmer_masked(actual_kmer, k, os, size_t_max(k - ov));
+        else if(!count_not_print) print_kmer(actual_kmer, k, os, size_t_max(k - ov));
         
         total_length += k - ov;
 
         actual_kmer = new_kmer;
     }
-    if (encode_mask) print_kmer_masked(new_kmer, k, os);
-    else print_kmer(new_kmer, k, os);
+    if (encode_mask && !count_not_print) print_kmer_masked(new_kmer, k, os);
+    else if(!count_not_print) print_kmer(new_kmer, k, os);
     
     total_length += k;
 
