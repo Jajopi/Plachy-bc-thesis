@@ -146,30 +146,30 @@ char to_upper(char c){
         c;
 }*/
 
-template <typename kmer_t>
-void print_kmer_masked(kmer_t kmer, size_t k, std::ostream& os, size_t prefix = 0){
+template <typename kmer_t, typename size_t_max>
+void print_kmer_masked(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max prefix = 0){
     if (prefix == 0 || prefix > k) prefix = k;
 
     os << to_upper(NucleotideAtIndex(kmer, k, 0));
-    for (size_t c = 1; c < prefix; ++c){
+    for (size_t_max c = 1; c < prefix; ++c){
         os << to_lower(NucleotideAtIndex(kmer, k, c));
     }
 }
 
-template <typename kmer_t>
-void print_kmer(kmer_t kmer, size_t k, std::ostream& os, size_t prefix = 0){
+template <typename kmer_t, typename size_t_max>
+void print_kmer(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max prefix = 0){
     if (prefix == 0 || prefix > k) prefix = k;
 
-    for (size_t c = 0; c < prefix; ++c){
+    for (size_t_max c = 0; c < prefix; ++c){
         os << to_upper(NucleotideAtIndex(kmer, k, c));
     }
 }
 
-template<typename kmer_t>
-size_t compute_max_overlap(kmer_t kmer1, kmer_t kmer2, size_t k){
-    for (size_t ov = k; ov > 0; --ov){
+template<typename kmer_t, typename size_t_max>
+size_t_max compute_max_overlap(kmer_t kmer1, kmer_t kmer2, size_t_max k){
+    for (size_t_max ov = k; ov > 0; --ov){
         bool found = true;
-        for (size_t i = 0; i < ov; ++i){
+        for (size_t_max i = 0; i < ov; ++i){
             if (NucleotideAtIndex(kmer2, k, i) != NucleotideAtIndex(kmer1, k, k - ov + i)){
                 found = false;
                 break;
@@ -180,17 +180,17 @@ size_t compute_max_overlap(kmer_t kmer1, kmer_t kmer2, size_t k){
     return 0;
 }
 
-template <typename kmer_t>
-size_t decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vector<size_t>& indexes, std::ostream& os, size_t k, bool encode_mask = true){
-    size_t total_length = 0;
+template <typename kmer_t, typename size_t_max>
+size_t_max decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vector<size_t_max>& indexes, std::ostream& os, size_t_max k, bool encode_mask = true){
+    size_t_max total_length = 0;
     
     kmer_t actual_kmer = kMers[indexes[0]], new_kmer = kMers[indexes[1]];
-    for (size_t i = 1; i < indexes.size(); ++i){
+    for (size_t_max i = 1; i < indexes.size(); ++i){
         new_kmer = kMers[indexes[i]];
         
-        size_t ov = compute_max_overlap(actual_kmer, new_kmer, k);
-        if (encode_mask) print_kmer_masked(actual_kmer, k, os, k - ov);
-        else print_kmer(actual_kmer, k, os, k - ov);
+        size_t_max ov = compute_max_overlap(actual_kmer, new_kmer, k);
+        if (encode_mask) print_kmer_masked(actual_kmer, k, os, size_t_max(k - ov));
+        else print_kmer(actual_kmer, k, os, size_t_max(k - ov));
         
         total_length += k - ov;
 

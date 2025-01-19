@@ -55,23 +55,23 @@ size_t_max compute_max_depth(size_t_max number_size_type, std::vector<kmer_t>& k
 }
 
 template <typename kmer_t, typename size_t_max>
-void compute_with_cs_ac(size_t_max number_size_type,
-        std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements){
+void compute_with_cs_ac(
+        std::vector<kmer_t>& kMers, std::ostream& os, size_t_max k, bool complements){
     
-    size_t_max max_depth = compute_max_depth(number_size_type, kMers, complements);
+    size_t_max max_depth = compute_max_depth(size_t_max(0), kMers, complements);
     std::cout << "Maximal available depth: " << max_depth << std::endl;
     size_t_max depth_cutoff = 0;
     if (max_depth < k) depth_cutoff = k - max_depth;
 
     auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, depth_cutoff, complements);
     csac.construct_graph();
-    //csac.print_topological();
-    csac.construct_leaf_ranges();
-    //csac.print_sorted();
     csac.print_stats();
+    //csac.print_topological();
+    csac.convert_to_searchable_representation();
+    //csac.print_sorted();
 
-    //auto indexes = csac.compute_ordering();
-    //decode_and_print_indexes(kMers, indexes, os, k);
+    auto indexes = csac.compute_indexes(depth_cutoff);
+    decode_and_print_indexes(kMers, indexes, os, k);
 }
 
 template <typename kmer_t>
@@ -91,10 +91,10 @@ void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool co
     
     size_t limit = kMers.size() * k;
     if (limit < (size_t(1) << 15))
-        compute_with_cs_ac(uint16_t(0), kMers, os, k, complements);
+        compute_with_cs_ac(kMers, os, uint16_t(k), complements);
     else if (limit < (size_t(1) << 31))
-        compute_with_cs_ac(uint32_t(0), kMers, os, k, complements);
+        compute_with_cs_ac(kMers, os, uint32_t(k), complements);
     else
-        compute_with_cs_ac(uint64_t(0), kMers, os, k, complements);
+        compute_with_cs_ac(kMers, os, uint64_t(k), complements);
 }
 
