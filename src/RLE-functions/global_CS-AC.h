@@ -33,17 +33,25 @@ size_t_max compute_max_depth(size_t_max number_size_type, std::vector<kmer_t>& k
     size_t available_memory = getTotalSystemMemory() - RESERVED_MEMORY_GB * size_t(1 << 30);
     std::cout << "Available memory: " << available_memory << std::endl;
 
-    size_t memory_reserved_per_kmer = sizeof(kmer_t) // kMers
-                                + 2 * sizeof(size_t_max); // failures
+    size_t storing_memory_reserved_per_kmer = sizeof(kmer_t);
+    
+    size_t constructing_and_searching_memory_reserved_per_kmer = std::max((
+            2 * sizeof(size_t_max)       // failures
+        ),(
+            3 * sizeof(size_t_max)       // hq
+            + sizeof(size_t_max)         // previous
+            + sizeof(size_t_max)         // unionfind
+            + sizeof(size_t_max)         // indexes - may reuse space after hq?
+        ));
+    
+    size_t memory_reserved_per_kmer = storing_memory_reserved_per_kmer + constructing_and_searching_memory_reserved_per_kmer;
     size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kMers.size() * (1 + complements);
     
-    size_t expected_memory_reserved_for_solving = 0; // TODO add
-    
-    if (available_memory < memory_reserved_for_kmers + expected_memory_reserved_for_solving){
+    if (available_memory < memory_reserved_for_kmers){
         throw std::invalid_argument("Not enough memory for computation with complements!");
     }
 
-    size_t available_nodes = (available_memory - memory_reserved_for_kmers - expected_memory_reserved_for_solving) / sizeof(CS_AC_Node<size_t_max>);
+    size_t available_nodes = (available_memory - memory_reserved_for_kmers) / sizeof(CS_AC_Node<size_t_max, K_SIZE_CONSTANT>);
     size_t available_depth = available_nodes / kMers.size();
 
     if (available_depth < 3){ // at least two top levels + current_nodes

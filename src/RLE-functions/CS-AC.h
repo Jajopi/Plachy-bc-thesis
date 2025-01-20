@@ -11,8 +11,10 @@
 template<typename size_t_max>
 class UnionFind {
     std::vector<size_t_max> roots;
+    size_t_max component_count;
+
 public:
-    UnionFind(size_t_max size) : roots(n) { for (size_t_max i = 0; i < n; ++i) roots[i] = i; };
+    UnionFind(size_t_max size) : roots(size), component_count(size) { for (size_t_max i = 0; i < size; ++i) roots[i] = i; };
     
     inline size_t_max find(size_t_max x) {
         size_t_max root = roots[x];
@@ -34,7 +36,10 @@ public:
     inline void connect(size_t_max x, size_t_max y){
         if (are_connected(x, y)) return;
         roots[y] = x;
+        --component_count;
     }
+
+    inline size_t_max count() const { return component_count; };
 };
 
 
@@ -42,7 +47,7 @@ constexpr size_t K_SIZE_CONSTANT = 8;
 
 template<typename size_t_max, size_t_max K_SIZE> // TODO replace with better suited value?
 struct CS_AC_Node {
-    size_t_max depth_and_kmer_index; // reused only as depth
+    size_t_max depth_and_kmer_index; // reused as depth and non-changing leaf_range_begin
     size_t_max failure;              // stays
     size_t_max child_range_begin;    // reused as leaf_range_begin after conversion
     size_t_max child_range_end;      // reused as leaf_range_end after conversion
@@ -51,7 +56,9 @@ struct CS_AC_Node {
     
     inline size_t_max kmer_index() const { return depth_and_kmer_index >> K_SIZE; };
     inline size_t_max depth() const { return depth_and_kmer_index & ((1 << K_SIZE) - 1); };
-    inline void clear_kmer_index() { depth_and_kmer_index = depth() };
+    inline void reverse_kmer_index(size_t_max n) {
+        depth_and_kmer_index = depth() + ((n - 1 - kmer_index()) << K_SIZE);
+    }
 
     CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max after_last_child) :
         depth_and_kmer_index((kmer_index << K_SIZE) + depth), failure(INVALID_NODE()),
@@ -74,15 +81,13 @@ inline void CS_AC_Node<size_t_max, K_SIZE>::print(std::ostream &os) const {
 }
 
 template<typename size_t_max, size_t_max K_SIZE>
-struct CS_AC_Searcher_Node : private CS_AC_Node<size_t_max, size_t_max K_SIZE> {
-    size_t_max depth; // depth stays, TODO can be used for more
-    size_t_max failure;                  // stays
-    size_t_max leaf_range_begin;         // child_range_begin
-    size_t_max leaf_range_end;           // child_range_end
+struct CS_AC_Searcher_Node : private CS_AC_Node<size_t_max, K_SIZE> {
+    size_t_max depth_and_leaf_range_begin;  // depth stays, leaf_range_begin that does not change
+    size_t_max failure;                     // stays
+    size_t_max leaf_range_begin; // changes // from child_range_begin
+    size_t_max leaf_range_end;              // from child_range_end
 
-    static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
-    
-    inline void set_previous(size_t_max previous) { depth_and_previous_index ~= ((1 << K_SIZE) - 1); depth_and_previous_index += previous };
+    inline size_t_max original_leaf_range_begin() const { return depth_and_leaf_range_begin >> K_SIZE; };
 };
 
 
@@ -125,7 +130,7 @@ public:
     void set_search_parameters(size_t_max new_run_score, size_t_max base_extension_score = 1);
     std::vector<size_t_max> compute_indexes(bool print = false);
 
-    void LOG_STREAM = std::cerr;
+    std::ostream& LOG_STREAM = std::cerr;
     void print_stats(std::ostream& os = std::cout);
     void print_sorted(std::ostream& os = std::cout);
     void print_topological(std::ostream& os = std::cout);
@@ -225,10 +230,10 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::convert_to_searchable_representa
 
     size_t_max node_count = nodes.size();
     for (size_t_max i = 0; i < N; ++i){
-        nodes[i].clear_kmer_index();
+        nodes[i].reverse_kmer_index(N);
     }
     for (size_t_max i = N; i < node_count; ++i){
-        nodes[i].clear_kmer_index();
+        nodes[i].reverse_kmer_index(N);
         nodes[i].child_range_begin = nodes[nodes[i].child_range_begin].child_range_begin;
         nodes[i].child_range_end = nodes[nodes[i].child_range_end - 1].child_range_end;
     }
@@ -258,67 +263,54 @@ inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_index
 
     std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> hq; // priority, current node_index, origin_leaf_index
     hq.reserve(2 * N); // TODO better guess
-    std::vector<size_t_max> previous(N, INVALID_NODE()); // leaf number + N if new run was started, else leaf number
-
-    for (size_t_max i = 0; i < N; ++i) hq.emplace_back(std::numeric_limits<size_t_max>::max(), i, i);
+    //for (size_t_max i = 0; i < N; ++i) hq.emplace_back(std::numeric_limits<size_t_max>::max(), i, i);
     //std::make_heap(hq.begin(), hq.end()); // Already is a heap
+    for (size_t_max i = 0; i < N; ++i) push_failure_of_node_into_hq(hq, i, i, std::numeric_limits<size_t_max>::max());
 
-    size_t_max root_node_index = nodes.size() - 1;
-    size_t_max connected_count = 0;
+    size_t_max root_node_index = search_nodes.size() - 1;
+    size_t_max resigned_count = 0;
 
-    std::vector<size_t_max> unionfind(N); // TODO replace by actual union-find
-    for (size_t_max i = 0; i < N; ++i) unionfind[i] = i;
+    std::vector<size_t_max> previous(N, INVALID_NODE()); // leaf number + N if new run was started, else leaf number
+    UnionFind components(N);
 
-    while (!hq.empty() && connected_count < N - 1){
+    while (!hq.empty() && components.count() - resigned_count > 1){
         auto p = hq.front(); std::pop_heap(hq.begin(), hq.end()); hq.pop_back();
         // LOG_STREAM << std::get<0>(p) << ' ' << std::get<1>(p) << ' ' << std::get<2>(p) << std::endl;
 
         size_t_max origin_leaf_index = std::get<2>(p);
-        Node& origin_leaf_node = nodes[origin_leaf_index];
-        if (origin_leaf_node.child_range_begin == origin_leaf_node.child_range_end) continue; // Already found next or resigned for this leaf
+        SearchNode& origin_leaf_node = search_nodes[origin_leaf_index];
+        if (origin_leaf_node.leaf_range_begin == origin_leaf_node.leaf_range_end) continue; // Already found next or resigned for this leaf
 
         size_t_max priority = std::get<0>(p), node_index = std::get<1>(p);
         if (node_index == root_node_index){
-            --origin_leaf_node.child_range_end; // We resign for current leaf
-            ++connected_count;
+            --origin_leaf_node.leaf_range_end; // We resign for current leaf
+            ++resigned_count;
             continue;
         }
 
-        if (node_index == origin_leaf_index){ // Only first time for each leaf, init
-            push_failure_of_node_into_hq(hq, node_index, origin_leaf_index, priority);
-            continue;
-        }
-
-        Node& node = nodes[node_index];
-        size_t_max leaf_range_begin = node.child_range_begin;
-        while (leaf_range_begin != node.child_range_end &&
-               (nodes[leaf_range_begin].parent != INVALID_NODE() || // Todo make efficient
-               unionfind[leaf_range_begin] == unionfind[origin_leaf_index])) // TODO replace with actual union-find
-            ++leaf_range_begin;
+        SearchNode& node = search_nodes[node_index];
+        while (node.leaf_range_begin != node.leaf_range_end &&
+                (previous[node.leaf_range_begin] != INVALID_NODE() || // Todo make efficient
+                components.are_connected(node.leaf_range_begin, origin_leaf_index)))
+            ++node.leaf_range_begin;
         
-        // LOG_STREAM << node.child_range_begin << ' ' << leaf_range_begin << ' ' << node.child_range_end << std::endl;
+        // LOG_STREAM << node.child_range_begin << ' ' << leaf_range_begin << ' ' << node.leaf_range_end << std::endl;
 
-        if (leaf_range_begin != node.child_range_end){
-            nodes[leaf_range_begin].parent = origin_leaf_index; // Found previous for that leaf
-            ++nodes[origin_leaf_index].child_range_begin; // Found next for current leaf
+        if (node.leaf_range_begin != node.leaf_range_end){
+            previous[node.leaf_range_begin] = origin_leaf_index; // Found previous for this leaf
+            ++search_nodes[origin_leaf_index].leaf_range_begin; // Found next for origin leaf
             // LOG_STREAM << origin_leaf_index << " -> " << leaf_range_begin << std::endl;
-            ++connected_count;
 
             // TODO replace by union-find update
-            size_t_max actual = leaf_range_begin;
-            while (actual != INVALID_NODE()){
-                unionfind[actual] = unionfind[leaf_range_begin];
-                actual = nodes[actual].parent;
-            }
-            continue;
+            components.connect(origin_leaf_index, node.leaf_range_begin); // Second into the first one
         }
 
-        for (size_t_max i = node.child_range_begin; i < node.child_range_end; ++i){
-            if (i == origin_leaf_index || nodes[i].child_range_end == i || unionfind[i] == origin_leaf_index) continue;
-            push_failure_of_node_into_hq(hq, i, origin_leaf_index, priority);            
+        for (size_t_max i = node.original_leaf_range_begin(); i < node.leaf_range_end; ++i){
+            if (components.are_connected(origin_leaf_index, i) || search_nodes[i].leaf_range_end == i) continue; // Is already connected to origin leaf or was resigned for
+            push_failure_of_node_into_hq(hq, i, origin_leaf_index, priority); // Add failure of that leaf
         }
 
-        push_failure_of_node_into_hq(hq, node_index, origin_leaf_index, priority);
+        push_failure_of_node_into_hq(hq, node_index, origin_leaf_index, priority); // Add failure of current node
     }
 
     hq.clear(); hq.shrink_to_fit(); // Should deallocate, ?
@@ -329,16 +321,16 @@ inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_index
     
     size_t_max current_final_index = N - 1;
     for (size_t_max i = 0; i < N; ++i){
-        if (nodes[i].child_range_begin == i + 1) continue; // This leaf has a next one found, will be included from it
-        
-        size_t_max actual = i;
-        while (nodes[actual].parent != INVALID_NODE()){
-            indexes[current_final_index--] = N - actual - 1;
-            // LOG_STREAM << actual << ' ' << nodes[actual].kmer_index << std::endl;
-            actual = nodes[actual].parent;
+        if (components.find(i) == i){ // Begining of a chain
+            size_t_max actual = i;
+            while (actual != INVALID_NODE()){
+                indexes[current_final_index--] = N - actual - 1;
+                // LOG_STREAM << actual << ' ' << search_nodes[actual].kmer_index << std::endl;
+                actual = previous[actual];
+            }
         }
     }
-    LOG_STREAM << current_final_index << ' ' << std::endl;
+    LOG_STREAM << resigned_count << std::endl;
 
     return indexes;
 }
@@ -356,7 +348,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::sort(std::vector<kmer_t> &kMers)
     }
 
     LOG_STREAM << "Using std::sort..." << std::endl;
-    std::sort(array.begin(), array.end());
+    std::sort(kMers.begin(), kMers.end());
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -427,7 +419,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_stats(std::ostream &os)
     
     size_t_max node_count = nodes.size();
     for (size_t_max i = 0; i < node_count; ++i){
-        depth_count[nodes[i].depth]++;
+        depth_count[nodes[i].depth()]++;
     }
 
     os << "Depths:" << std::endl;
@@ -444,7 +436,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_sorted(std::ostream& os) {
         os << i++ << ":\t";
         node.print(os);
         os << ":\t";
-        for (size_t_max c = 0; c < node.depth; ++c) os << NucleotideAtIndex(kMers[node.kmer_index], K, c);
+        for (size_t_max c = 0; c < node.depth(); ++c) os << NucleotideAtIndex(kMers[node.kmer_index], K, c);
         os << std::endl;
     }
 }
@@ -468,7 +460,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_topological(std::ostream& 
     os << root << ":\t";
     node.print(os);
     os << ":\t";
-    for (size_t_max c = 0; c < node.depth; ++c) os << NucleotideAtIndex(kMers[node.kmer_index], K, c);
+    for (size_t_max c = 0; c < node.depth(); ++c) os << NucleotideAtIndex(kMers[node.kmer_index], K, c);
     
     os << std::endl;
 

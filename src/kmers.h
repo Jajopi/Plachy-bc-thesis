@@ -176,9 +176,9 @@ size_t_max decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std:
     size_t_max total_length = 0;
     size_t_max run_count = 1;
     
-    kmer_t actual_kmer = kMers[indexes[0]];
+    kmer_t actual_kmer = kMers[indexes[0]], new_kmer = 0;
     for (size_t_max i = 1; i < indexes.size(); ++i){
-        kmer_t new_kmer = kMers[indexes[i]];
+        new_kmer = kMers[indexes[i]];
         
         size_t_max ov = compute_max_overlap(actual_kmer, new_kmer, k);
         print_kmer(actual_kmer, k, os, size_t_max(k)); std::cout << ' '; print_kmer(new_kmer, k, os, size_t_max(k)); std::cout << ' ' << ov << std::endl;
