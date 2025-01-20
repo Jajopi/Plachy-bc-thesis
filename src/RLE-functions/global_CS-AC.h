@@ -30,8 +30,8 @@
 
 template <typename kmer_t, typename size_t_max>
 size_t_max compute_max_depth(size_t_max number_size_type, std::vector<kmer_t>& kMers, bool complements){
-    size_t available_memory = getTotalSystemMemory() - RESERVED_MEMORY_GB * size_t(1 << 30);
-    std::cout << "Available memory: " << available_memory << std::endl;
+    size_t available_memory = getTotalSystemMemory() - (RESERVED_MEMORY_GB * size_t(1 << 30));
+    std::cerr << "Available memory: " << available_memory << std::endl;
 
     size_t storing_memory_reserved_per_kmer = sizeof(kmer_t);
     
@@ -67,7 +67,7 @@ void compute_with_cs_ac(
         std::vector<kmer_t>& kMers, std::ostream& os, size_t_max k, bool complements){
     
     size_t_max max_depth = compute_max_depth(size_t_max(0), kMers, complements);
-    std::cout << "Maximal available depth: " << max_depth << std::endl;
+    std::cerr << "Maximal available depth: " << max_depth << std::endl;
     size_t_max depth_cutoff = 0;
     if (max_depth < k) depth_cutoff = k - max_depth;
 
@@ -78,12 +78,13 @@ void compute_with_cs_ac(
     csac.print_stats();
     // csac.print_topological();
     csac.convert_to_searchable_representation();
+    csac.set_search_parameters(k);
     //csac.print_sorted();
 
     auto indexes = csac.compute_indexes(k - depth_cutoff);
     size_t_max length = decode_and_print_indexes(kMers, indexes, os, k);//, true, true);
     os << std::endl;
-    std::cout << length << std::endl;
+    std::cerr << "Total length: " << length << std::endl;
 }
 
 template <typename kmer_t>
