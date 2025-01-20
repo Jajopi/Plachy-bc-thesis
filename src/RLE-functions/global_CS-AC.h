@@ -74,17 +74,18 @@ void compute_with_cs_ac(
     std::sort(kMers.begin(), kMers.end()); // TODO move into class
 
     auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, depth_cutoff, complements);
+    // auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, k / 2, complements);
     csac.construct_graph();
     csac.print_stats();
     // csac.print_topological();
     csac.convert_to_searchable_representation();
-    csac.set_search_parameters(k);
+    // csac.set_search_parameters(k);
+    csac.set_search_parameters(1);
     //csac.print_sorted();
 
     auto indexes = csac.compute_indexes(k - depth_cutoff);
-    size_t_max length = decode_and_print_indexes(kMers, indexes, os, k);//, true, true);
+    decode_and_print_indexes(kMers, indexes, os, k);//, true, true);
     os << std::endl;
-    std::cerr << "Total length: " << length << std::endl;
 }
 
 template <typename kmer_t>

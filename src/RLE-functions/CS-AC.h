@@ -344,7 +344,7 @@ template <typename kmer_t, typename size_t_max>
 inline void CuttedSortedAC<kmer_t, size_t_max>::sort(std::vector<kmer_t> &kMers) {
     for (size_t_max i = 1; i <= N; ++i){
         if (i == N){
-            LOG_STREAM << "Already sorted.";
+            LOG_STREAM << "Already sorted." << std::endl;
             return;
         }
         if (kMers[i] < kMers[i - 1]) break;
