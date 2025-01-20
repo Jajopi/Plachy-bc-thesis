@@ -9,35 +9,61 @@
 #include "../kmers.h"
 
 template<typename size_t_max>
+class UnionFind {
+    std::vector<size_t_max> roots;
+public:
+    UnionFind(size_t_max size) : roots(n) { for (size_t_max i = 0; i < n; ++i) roots[i] = i; };
+    
+    inline size_t_max find(size_t_max x) {
+        size_t_max root = roots[x];
+        if (roots[root] == root) return root;
+
+        while (roots[root] != root) root = roots[root];
+        
+        while (x != root){
+            size_t_max new_x = roots[x];
+            roots[x] = root;
+            x = new_x;
+        }
+    }
+
+    inline bool are_connected(size_t_max x, size_t_max y){
+        return find(x) == find(y);
+    }
+
+    inline void connect(size_t_max x, size_t_max y){
+        if (are_connected(x, y)) return;
+        roots[y] = x;
+    }
+};
+
+
+constexpr size_t K_SIZE_CONSTANT = 8;
+
+template<typename size_t_max, size_t_max K_SIZE> // TODO replace with better suited value?
 struct CS_AC_Node {
-    size_t_max kmer_index;        // can be reused
-    size_t_max depth;
-    size_t_max parent;            // reused as previous index after conversion
-    size_t_max failure;
-    size_t_max child_range_begin; // reused as leaf_range_begin after conversion
-    size_t_max child_range_end;   // reused as leaf_range_end after conversion
+    size_t_max depth_and_kmer_index; // reused only as depth
+    size_t_max failure;              // stays
+    size_t_max child_range_begin;    // reused as leaf_range_begin after conversion
+    size_t_max child_range_end;      // reused as leaf_range_end after conversion
 
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
-
-    CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max parent) :
-        kmer_index(kmer_index), depth(depth), parent(parent),
-        failure(INVALID_NODE()),
-        child_range_begin(INVALID_NODE()), child_range_end(INVALID_NODE()) {};
+    
+    inline size_t_max kmer_index() const { return depth_and_kmer_index >> K_SIZE; };
+    inline size_t_max depth() const { return depth_and_kmer_index & ((1 << K_SIZE) - 1); };
+    inline void clear_kmer_index() { depth_and_kmer_index = depth() };
 
     CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max after_last_child) :
-        kmer_index(kmer_index), depth(depth), parent(INVALID_NODE()),
-        failure(INVALID_NODE()),
+        depth_and_kmer_index((kmer_index << K_SIZE) + depth), failure(INVALID_NODE()),
         child_range_begin(first_child), child_range_end(after_last_child) {};
 
     void print(std::ostream& os) const;
 };
 
-template <typename size_t_max>
-inline void CS_AC_Node<size_t_max>::print(std::ostream &os) const {
-    os << depth << '/';
-    if (kmer_index == INVALID_NODE()) os << "INV"; else os << kmer_index;
-    os << ",\tP: ";
-    if (parent == INVALID_NODE()) os << "INV"; else os << parent;
+template<typename size_t_max, size_t_max K_SIZE>
+inline void CS_AC_Node<size_t_max, K_SIZE>::print(std::ostream &os) const {
+    os << depth() << '/';
+    if (kmer_index == INVALID_NODE()) os << "INV"; else os << kmer_index();
     os << ",\tF: ";
     if (failure == INVALID_NODE()) os << "INV"; else os << failure;
     os << ",\tCH: [ ";
@@ -47,24 +73,23 @@ inline void CS_AC_Node<size_t_max>::print(std::ostream &os) const {
     os << " )";
 }
 
-/*template <typename size_t_max>
-inline void CS_AC_Searching_Node<size_t_max>::print(std::ostream &os) const {
-    os << depth << '/';
-    if (kmer_index == INVALID_NODE()) os << "INV"; else os << kmer_index;
-    os << ",\tF: ";
-    if (failure == INVALID_NODE()) os << "INV"; else os << failure;
-    os << ",\tN: ";
-    if (next_child == INVALID_NODE()) os << "INV"; else os << next_child;
-    os << ",\tL: [ ";
-    if (leaf_range_begin == INVALID_NODE()) os << "INV"; else os << leaf_range_begin;
-    os << " - ";
-    if (leaf_range_end == INVALID_NODE()) os << "INV"; else os << leaf_range_end;
-    os << " )";
-}*/
+template<typename size_t_max, size_t_max K_SIZE>
+struct CS_AC_Searcher_Node : private CS_AC_Node<size_t_max, size_t_max K_SIZE> {
+    size_t_max depth; // depth stays, TODO can be used for more
+    size_t_max failure;                  // stays
+    size_t_max leaf_range_begin;         // child_range_begin
+    size_t_max leaf_range_end;           // child_range_end
+
+    static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
+    
+    inline void set_previous(size_t_max previous) { depth_and_previous_index ~= ((1 << K_SIZE) - 1); depth_and_previous_index += previous };
+};
+
 
 template <typename kmer_t, typename size_t_max>
 class CuttedSortedAC {
-    using Node = CS_AC_Node<size_t_max>;
+    using Node = CS_AC_Node<size_t_max, K_SIZE_CONSTANT>;
+    using SearchNode = CS_AC_Searcher_Node<size_t_max, K_SIZE_CONSTANT>;
 
     std::vector<kmer_t> kMers;
     std::vector<Node> nodes;
@@ -75,18 +100,18 @@ class CuttedSortedAC {
     bool COMPLEMENTS;        // whether or not complements are used
 
     bool CONVERTED_TO_SEARCHABLE = false;
+    size_t_max NEW_RUN_SCORE = 0;
+    size_t_max BASE_EXTENSION_SCORE = 0;
     
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
-    static inline kmer_t BIGGEST_KMER() { return std::numeric_limits<kmer_t>::max(); };
 
-    template<typename array_element>
-    void sort(std::vector<array_element>& array, size_t_max starting_base = 0);
-    template<typename array_element>
-    void radix_sort(std::vector<array_element>& array, size_t_max begin, size_t_max end, size_t_max starting_base = 0);
+    void sort(std::vector<kmer_t>& kMers);
 
     void resort_and_shorten_failures(std::vector<std::pair<size_t_max, size_t_max>> &failures, size_t_max depth);
-    void push_failure_of_node_into_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>>& hq, size_t_max node_index, size_t_max origin_leaf_index,
-                                      size_t_max current_priority, size_t_max BASE_SCORE, size_t_max NEW_RUN_SCORE);
+
+    void push_failure_of_node_into_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>>& hq,
+                                      size_t_max node_index, size_t_max origin_leaf_index, size_t_max current_priority);
+    
 public:
     CuttedSortedAC(const std::vector<kmer_t>& kMers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
         kMers(kMers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) {};
@@ -95,14 +120,18 @@ public:
         kMers(std::move(kMers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) {};
 
     void construct_graph();
-    void convert_to_searchable_representation();
-    std::vector<size_t_max> compute_indexes(size_t_max NEW_RUN_SCORE, size_t_max BASE_SCORE = 1);
 
+    void convert_to_searchable_representation();
+    void set_search_parameters(size_t_max new_run_score, size_t_max base_extension_score = 1);
+    std::vector<size_t_max> compute_indexes(bool print = false);
+
+    void LOG_STREAM = std::cerr;
     void print_stats(std::ostream& os = std::cout);
     void print_sorted(std::ostream& os = std::cout);
     void print_topological(std::ostream& os = std::cout);
     void print_topological(std::ostream& os, size_t_max root, size_t_max depth);
 };
+
 
 template <typename kmer_t, typename size_t_max>
 inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
@@ -110,7 +139,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
         throw std::invalid_argument("Graph has already been constructed.");
     }
 
-    std::cout << "Preparing..." << std::endl;
+    LOG_STREAM << "Preparing..." << std::endl;
     sort(kMers);
 
     nodes.reserve((K - DEPTH_CUTOFF) * N);
@@ -124,14 +153,14 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
         failures[i] = std::make_pair(i, N - i - 1);
     }
 
-    std::cout << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; std::cout.flush();
+    LOG_STREAM << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; LOG_STREAM.flush();
 
     // Add other nodes
     for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
-        std::cout << "\b\b\b" << std::setfill(' ') << std::setw(3) << depth; std::cout.flush();
+        LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(3) << depth; LOG_STREAM.flush();
         
         size_t_max last_node_count = nodes.size();
-        for (Node node: current_nodes) nodes.push_back(std::move(node));
+        for (Node node: current_nodes) nodes.push_back(node);
         current_nodes.clear();
         size_t_max node_count = nodes.size();
         size_t_max new_node_index = node_count;
@@ -140,18 +169,15 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
         size_t_max failure_index = failures.size() - 1;
 
         for (size_t_max i = last_node_count; i < node_count; ++i){
-            kmer_t current_prefix = BitPrefix(kMers[nodes[i].kmer_index], K, depth);
+            kmer_t current_prefix = BitPrefix(kMers[nodes[i].kmer_index()], K, depth);
             while (failure_index > 0 && current_prefix < BitSuffix(kMers[failures[failure_index].first], depth)) --failure_index;
 
             bool new_node_on_failure_path = (current_prefix == BitSuffix(kMers[failures[failure_index].first], depth));
 
             size_t_max j = i;
-            while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index], K, depth)){
-                nodes[j].parent = new_node_index;
-                ++j;
-            }
+            while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index()], K, depth)) ++j;
 
-            current_nodes.emplace_back(nodes[i].kmer_index,
+            current_nodes.emplace_back(nodes[j - 1].kmer_index(),
                                        size_t_max(depth),
                                        size_t_max(i),
                                        size_t_max(j));
@@ -174,23 +200,18 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::construct_graph() {
             i = j - 1;
         }
     }
-    std::cout << "\b\b\b" << std::setfill(' ') << std::setw(3) << DEPTH_CUTOFF << std::endl;
+    LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(3) << DEPTH_CUTOFF << std::endl;
 
-    for (Node node: current_nodes) nodes.push_back(std::move(node));
+    for (Node node: current_nodes) nodes.push_back(node);
 
     nodes.emplace_back(0, 0, nodes.size() - current_nodes.size(), nodes.size());
     size_t_max root_node = nodes.size() - 1;
-    for (size_t_max i = root_node - 1; i >= N; --i){
-        if (nodes[i].parent == INVALID_NODE()){
-            nodes[i].parent = root_node;
-        }
-        else break;
-    }
+    
     for (size_t_max i = 0; i < root_node; ++i){
         if (nodes[i].failure == INVALID_NODE()) nodes[i].failure = root_node;
     }
 
-    std::cout << "Graph construction finished." << std::endl;
+    LOG_STREAM << "Graph construction finished." << std::endl;
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -203,33 +224,44 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::convert_to_searchable_representa
     }
 
     size_t_max node_count = nodes.size();
-    for (size_t_max i = 0; i < node_count; ++i){
-        
-        nodes[i].parent = INVALID_NODE(); // Will be previous index
-        
-        if (i < N) continue;
+    for (size_t_max i = 0; i < N; ++i){
+        nodes[i].clear_kmer_index();
+    }
+    for (size_t_max i = N; i < node_count; ++i){
+        nodes[i].clear_kmer_index();
         nodes[i].child_range_begin = nodes[nodes[i].child_range_begin].child_range_begin;
         nodes[i].child_range_end = nodes[nodes[i].child_range_end - 1].child_range_end;
     }
+
     CONVERTED_TO_SEARCHABLE = true;
 }
 
-
-//#define previous            (parent)
-//#define leaf_range_begin    child_range_begin
-//#define leaf_range_end      child_range_end
 template <typename kmer_t, typename size_t_max>
-inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_indexes(size_t_max NEW_RUN_SCORE, size_t_max BASE_SCORE) {
+inline void CuttedSortedAC<kmer_t, size_t_max>::set_search_parameters(size_t_max new_run_score, size_t_max base_extension_score) {
+    NEW_RUN_SCORE = new_run_score;
+    BASE_EXTENSION_SCORE = base_extension_score;
+}
+
+template <typename kmer_t, typename size_t_max>
+inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_indexes(bool print) {
     if (!CONVERTED_TO_SEARCHABLE){
         throw std::invalid_argument("Graph has not been converted to searchable yet.");
     }
+    if (NEW_RUN_SCORE == 0){
+        throw std::invalid_argument("Mandatory parameter NEW_RUN_SCORE was not set.");
+    }
+    if (BASE_EXTENSION_SCORE == 0){
+        throw std::invalid_argument("Mandatory parameter BASE_EXTENSION_SCORE was not set.");
+    }
 
-    //std::vector<size_t_max> previous(N, INVALID_NODE());
+    std::vector<SearchNode>& search_nodes = nodes;
+
     std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> hq; // priority, current node_index, origin_leaf_index
     hq.reserve(2 * N); // TODO better guess
+    std::vector<size_t_max> previous(N, INVALID_NODE()); // leaf number + N if new run was started, else leaf number
 
     for (size_t_max i = 0; i < N; ++i) hq.emplace_back(std::numeric_limits<size_t_max>::max(), i, i);
-    std::make_heap(hq.begin(), hq.end());
+    //std::make_heap(hq.begin(), hq.end()); // Already is a heap
 
     size_t_max root_node_index = nodes.size() - 1;
     size_t_max connected_count = 0;
@@ -239,7 +271,7 @@ inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_index
 
     while (!hq.empty() && connected_count < N - 1){
         auto p = hq.front(); std::pop_heap(hq.begin(), hq.end()); hq.pop_back();
-        std::cout << std::get<0>(p) << ' ' << std::get<1>(p) << ' ' << std::get<2>(p) << std::endl;
+        // LOG_STREAM << std::get<0>(p) << ' ' << std::get<1>(p) << ' ' << std::get<2>(p) << std::endl;
 
         size_t_max origin_leaf_index = std::get<2>(p);
         Node& origin_leaf_node = nodes[origin_leaf_index];
@@ -253,7 +285,7 @@ inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_index
         }
 
         if (node_index == origin_leaf_index){ // Only first time for each leaf, init
-            push_failure_of_node_into_hq(hq, node_index, origin_leaf_index, priority, BASE_SCORE, NEW_RUN_SCORE);
+            push_failure_of_node_into_hq(hq, node_index, origin_leaf_index, priority);
             continue;
         }
 
@@ -264,12 +296,12 @@ inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_index
                unionfind[leaf_range_begin] == unionfind[origin_leaf_index])) // TODO replace with actual union-find
             ++leaf_range_begin;
         
-        std::cout << node.child_range_begin << ' ' << leaf_range_begin << ' ' << node.child_range_end << std::endl;
+        // LOG_STREAM << node.child_range_begin << ' ' << leaf_range_begin << ' ' << node.child_range_end << std::endl;
 
         if (leaf_range_begin != node.child_range_end){
             nodes[leaf_range_begin].parent = origin_leaf_index; // Found previous for that leaf
             ++nodes[origin_leaf_index].child_range_begin; // Found next for current leaf
-            std::cout << origin_leaf_index << " -> " << leaf_range_begin << std::endl;
+            // LOG_STREAM << origin_leaf_index << " -> " << leaf_range_begin << std::endl;
             ++connected_count;
 
             // TODO replace by union-find update
@@ -283,10 +315,10 @@ inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_index
 
         for (size_t_max i = node.child_range_begin; i < node.child_range_end; ++i){
             if (i == origin_leaf_index || nodes[i].child_range_end == i || unionfind[i] == origin_leaf_index) continue;
-            push_failure_of_node_into_hq(hq, i, origin_leaf_index, priority, BASE_SCORE, NEW_RUN_SCORE);            
+            push_failure_of_node_into_hq(hq, i, origin_leaf_index, priority);            
         }
 
-        push_failure_of_node_into_hq(hq, node_index, origin_leaf_index, priority, BASE_SCORE, NEW_RUN_SCORE);
+        push_failure_of_node_into_hq(hq, node_index, origin_leaf_index, priority);
     }
 
     hq.clear(); hq.shrink_to_fit(); // Should deallocate, ?
@@ -301,60 +333,30 @@ inline std::vector<size_t_max> CuttedSortedAC<kmer_t, size_t_max>::compute_index
         
         size_t_max actual = i;
         while (nodes[actual].parent != INVALID_NODE()){
-            indexes[current_final_index--] = actual;
-            std::cout << actual << std::endl;
+            indexes[current_final_index--] = N - actual - 1;
+            // LOG_STREAM << actual << ' ' << nodes[actual].kmer_index << std::endl;
             actual = nodes[actual].parent;
         }
     }
+    LOG_STREAM << current_final_index << ' ' << std::endl;
 
     return indexes;
 }
-//#undef previous
-//#undef leaf_range_begin
-// #undef leaf_range_end
 
 // Sorting
 
 template <typename kmer_t, typename size_t_max>
-template <typename array_element>
-inline void CuttedSortedAC<kmer_t, size_t_max>::sort(std::vector<array_element> &array, size_t_max starting_base) {
-    /*if (array.size() > size_t_max(1 << (K - starting_base))){
-        std::cout << "Using in-place radix sort..." << std::endl;
-        radix_sort(array, 0, array.size(), starting_base);
-    }
-    else {*/
-        std::cout << "Using std::sort..." << std::endl;
-        std::sort(array.begin(), array.end());
-    //}
-}
-
-//in-place radix sort as in https://stackoverflow.com/questions/463105/in-place-radix-sort
-template <typename kmer_t, typename size_t_max>
-template <typename array_element>
-inline void CuttedSortedAC<kmer_t, size_t_max>::radix_sort(std::vector<array_element> &array, size_t_max begin, size_t_max end, size_t_max starting_base) {
-    if (begin >= end) return;
-
-    size_t_max AEnd = begin, TBegin = end;
-    size_t_max i = begin;
-    while (i < TBegin){
-        char nucleotide = NucleotideAtIndex(array[i], K, starting_base);
-        if (nucleotide == 'A') std::swap(array[i++], array[AEnd++]);
-        else if (nucleotide == 'T') std::swap(array[i], array[--TBegin]);
-        else ++i;
-    }
-    size_t_max CEnd = i = AEnd;
-    while (i < TBegin){
-        char nucleotide = NucleotideAtIndex(array[i], K, starting_base);
-        if (nucleotide == 'C') std::swap(array[i], array[CEnd++]);
-        ++i;
+inline void CuttedSortedAC<kmer_t, size_t_max>::sort(std::vector<kmer_t> &kMers) {
+    for (size_t_max i = 1; i <= N; ++i){
+        if (i == N){
+            LOG_STREAM << "Already sorted.";
+            return;
+        }
+        if (kMers[i] < kMers[i - 1]) break;
     }
 
-    if (starting_base < K){
-        radix_sort(array, begin, AEnd, (size_t_max)(starting_base + 1));  // A
-        radix_sort(array, AEnd, CEnd, (size_t_max)(starting_base + 1));   // C
-        radix_sort(array, CEnd, TBegin, (size_t_max)(starting_base + 1)); // G
-        radix_sort(array, TBegin, end, (size_t_max)(starting_base + 1));  // T
-    }
+    LOG_STREAM << "Using std::sort..." << std::endl;
+    std::sort(array.begin(), array.end());
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -404,12 +406,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::resort_and_shorten_failures(std:
 }
 
 template <typename kmer_t, typename size_t_max>
-inline void CuttedSortedAC<kmer_t, size_t_max>::push_failure_of_node_into_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> &hq, size_t_max node_index, size_t_max origin_leaf_index,
-                                                                             size_t_max current_priority, size_t_max BASE_SCORE, size_t_max NEW_RUN_SCORE) {
-    Node& node = nodes[node_index];
-    Node& failure_node = nodes[node.failure];
+inline void CuttedSortedAC<kmer_t, size_t_max>::push_failure_of_node_into_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> &hq,
+                                                                             size_t_max node_index, size_t_max origin_leaf_index, size_t_max current_priority) {
+    SearchNode& node = nodes[node_index];
+    SearchNode& failure_node = nodes[node.failure];
 
-    size_t_max failure_priority = current_priority - (node.depth - failure_node.depth) * BASE_SCORE;
+    size_t_max failure_priority = current_priority - (node.depth - failure_node.depth) * BASE_EXTENSION_SCORE;
     if (node.depth == K - 1 || (node.depth == K && failure_node.depth < K - 1)) failure_priority -= NEW_RUN_SCORE;
 
     hq.push_back(std::make_tuple(failure_priority, node.failure, origin_leaf_index)); std::push_heap(hq.begin(), hq.end());
@@ -467,11 +469,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max>::print_topological(std::ostream& 
     node.print(os);
     os << ":\t";
     for (size_t_max c = 0; c < node.depth; ++c) os << NucleotideAtIndex(kMers[node.kmer_index], K, c);
-
-    if (node.parent != INVALID_NODE()){
-        Node parent = nodes[node.parent];
-        if (parent.child_range_begin > root || parent.child_range_end <= root) os << " xxx";
-    }
     
     os << std::endl;
 

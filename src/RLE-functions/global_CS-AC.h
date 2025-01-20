@@ -68,7 +68,7 @@ void compute_with_cs_ac(
     auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, depth_cutoff, complements);
     csac.construct_graph();
     csac.print_stats();
-    csac.print_topological();
+    // csac.print_topological();
     csac.convert_to_searchable_representation();
     //csac.print_sorted();
 
@@ -80,25 +80,30 @@ void compute_with_cs_ac(
 
 template <typename kmer_t>
 void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
-    if (kMers.empty()) {
-		throw std::invalid_argument("Input cannot be empty");
-	}
-
-    // Add complementary k-mers.
-    size_t n = kMers.size();
-    kMers.resize(n * (1 + complements));
-    if (complements){
-        for (size_t i = 0; i < n; ++i) {
-            kMers[i + n] = ReverseComplement(kMers[i], k);
+    try {
+        if (kMers.empty()) {
+            throw std::invalid_argument("Input cannot be empty");
         }
+
+        // Add complementary k-mers.
+        size_t n = kMers.size();
+        kMers.resize(n * (1 + complements));
+        if (complements){
+            for (size_t i = 0; i < n; ++i) {
+                kMers[i + n] = ReverseComplement(kMers[i], k);
+            }
+        }
+        
+        size_t limit = kMers.size() * k;
+        if (limit < (size_t(1) << 15))
+            compute_with_cs_ac(kMers, os, uint16_t(k), complements);
+        else if (limit < (size_t(1) << 31))
+            compute_with_cs_ac(kMers, os, uint32_t(k), complements);
+        else
+            compute_with_cs_ac(kMers, os, uint64_t(k), complements);
     }
-    
-    size_t limit = kMers.size() * k;
-    if (limit < (size_t(1) << 15))
-        compute_with_cs_ac(kMers, os, uint16_t(k), complements);
-    else if (limit < (size_t(1) << 31))
-        compute_with_cs_ac(kMers, os, uint32_t(k), complements);
-    else
-        compute_with_cs_ac(kMers, os, uint64_t(k), complements);
+    catch (const std::exception& e){
+        std::cerr << "Exception was thrown: " << e.what() << std::endl;
+    }
 }
 
