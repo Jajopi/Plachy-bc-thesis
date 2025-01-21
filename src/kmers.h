@@ -137,12 +137,13 @@ char to_upper(char c){
 }
 
 template <typename kmer_t, typename size_t_max>
-void print_kmer_masked(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max prefix = 0){
+void print_kmer_masked(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max prefix = 0, bool all_upper = false){
     if (prefix == 0 || prefix > k) prefix = k;
 
     os << to_upper(NucleotideAtIndex(kmer, k, 0));
     for (size_t_max c = 1; c < prefix; ++c){
-        os << to_lower(NucleotideAtIndex(kmer, k, c));
+        if (all_upper) os << to_upper(NucleotideAtIndex(kmer, k, c));
+        else os << to_lower(NucleotideAtIndex(kmer, k, c));
     }
 }
 

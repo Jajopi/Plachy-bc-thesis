@@ -36,12 +36,12 @@ size_t_max compute_max_depth(size_t_max number_size_type, std::vector<kmer_t>& k
     size_t storing_memory_reserved_per_kmer = sizeof(kmer_t);
     
     size_t constructing_and_searching_memory_reserved_per_kmer = std::max((
-            2 * sizeof(size_t_max)       // failures
+            2 * sizeof(size_t_max) * 2   // failures, copied when shortening
         ),(
-            3 * sizeof(size_t_max)       // hq
+            3 * sizeof(size_t_max)       // hq, TODO change, but to what?
             + sizeof(size_t_max)         // previous
             + sizeof(size_t_max)         // unionfind
-            + sizeof(size_t_max)         // indexes - may reuse space after hq?
+            // + sizeof(size_t_max)         // leaf_indexes - may reuse space after hq?
         ));
     
     size_t memory_reserved_per_kmer = storing_memory_reserved_per_kmer + constructing_and_searching_memory_reserved_per_kmer;
@@ -73,19 +73,20 @@ void compute_with_cs_ac(
 
     std::sort(kMers.begin(), kMers.end()); // TODO move into class
 
-    auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, depth_cutoff, complements);
-    // auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, k / 2, complements);
+    // auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, depth_cutoff, complements);
+    auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, k / 2, complements);
     csac.construct_graph();
     csac.print_stats();
     // csac.print_topological();
     csac.convert_to_searchable_representation();
-    // csac.set_search_parameters(k);
-    csac.set_search_parameters(1);
+    csac.set_search_parameters(k);
+    // csac.set_search_parameters(0);
     //csac.print_sorted();
 
-    auto indexes = csac.compute_indexes(k - depth_cutoff);
+    /*auto indexes = csac.compute_indexes(k - depth_cutoff);
     decode_and_print_indexes(kMers, indexes, os, k);//, true, true);
-    os << std::endl;
+    os << std::endl;*/
+    csac.compute_and_print_result(os);
 }
 
 template <typename kmer_t>
@@ -104,7 +105,8 @@ void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool co
             }
         }
         
-        size_t limit = kMers.size() * k;
+        // size_t limit = kMers.size() * k;
+        size_t limit = kMers.size() * 256; // While using fixed K_SIZE
         if (limit < (size_t(1) << 15))
             compute_with_cs_ac(kMers, os, uint16_t(k), complements);
         else if (limit < (size_t(1) << 31))
