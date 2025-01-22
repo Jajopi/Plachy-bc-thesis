@@ -9,6 +9,7 @@
 #include "CS-AC.h"
 
 #define RESERVED_MEMORY_GB 4
+#define DEBUG_FAST_COMPILATION
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
 #ifdef USING_WINDOWS // NOT TESTED
@@ -28,72 +29,70 @@
     }
 #endif
 
-template <typename kmer_t, typename size_t_max>
-size_t_max compute_max_depth(size_t_max number_size_type, std::vector<kmer_t>& kMers, bool complements){
+template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
+size_t compute_max_depth(size_t kmer_count){
     size_t available_memory = getTotalSystemMemory() - (RESERVED_MEMORY_GB * size_t(1 << 30));
     std::cerr << "Available memory: " << available_memory << std::endl;
 
-    size_t storing_memory_reserved_per_kmer = sizeof(kmer_t);
+    size_t storing_memory_per_kmer = sizeof(kmer_t);
     
-    size_t constructing_and_searching_memory_reserved_per_kmer = std::max((
-            2 * sizeof(size_t_max) * 2   // failures, copied when shortening
-        ),(
-            3 * sizeof(size_t_max)       // hq, TODO change, but to what?
-            + sizeof(size_t_max)         // previous
-            + sizeof(size_t_max)         // unionfind
-            // + sizeof(size_t_max)         // leaf_indexes - may reuse space after hq?
-        ));
+    size_t constructing_memory_per_kmer = 2 * sizeof(size_t_max) * 2; // failures, copied when shortening
+    size_t searching_memory_per_kmer = sizeof(size_t_max) + sizeof(size_t_max); // unionfind, indexes, not counting hq
     
-    size_t memory_reserved_per_kmer = storing_memory_reserved_per_kmer + constructing_and_searching_memory_reserved_per_kmer;
-    size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kMers.size() * (1 + complements);
+    size_t memory_reserved_per_kmer = storing_memory_per_kmer + std::max(constructing_memory_per_kmer, searching_memory_per_kmer);
+    size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kmer_count;
     
     if (available_memory < memory_reserved_for_kmers){
-        throw std::invalid_argument("Not enough memory for computation with complements!");
+        throw std::invalid_argument("Not enough memory for storing the data.");
     }
 
-    size_t available_nodes = (available_memory - memory_reserved_for_kmers) / sizeof(CS_AC_Node<size_t_max, K_SIZE_CONSTANT>);
-    size_t available_depth = available_nodes / kMers.size();
+    size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers) / 2; // half reserved for hq
+    size_t available_nodes = (available_memory_for_nodes) / sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>);
+    size_t available_depth = available_nodes / kmer_count;
 
     if (available_depth < 3){ // at least two top levels + current_nodes
-        throw std::invalid_argument("Not enough memory for computation!");
+        throw std::invalid_argument("Not enough memory for computation.");
     }
-
-    return std::min(available_depth,
-                    size_t(std::numeric_limits<size_t_max>::max()));
+    std::cerr << "Maximal available depth: " << available_depth << std::endl;
+    return available_depth;
 }
 
-template <typename kmer_t, typename size_t_max>
-void compute_with_cs_ac(
-        std::vector<kmer_t>& kMers, std::ostream& os, size_t_max k, bool complements){
+template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
+void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements){
+
+    size_t max_depth = compute_max_depth<kmer_t, size_t_max, K_BIT_SIZE>(kMers.size());
     
-    size_t_max max_depth = compute_max_depth(size_t_max(0), kMers, complements);
-    std::cerr << "Maximal available depth: " << max_depth << std::endl;
-    size_t_max depth_cutoff = 0;
+    size_t depth_cutoff = 0;
     if (max_depth < k) depth_cutoff = k - max_depth;
 
-    std::sort(kMers.begin(), kMers.end()); // TODO move into class
-
-    // auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, depth_cutoff, complements);
-    auto csac = CuttedSortedAC<kmer_t, size_t_max>(kMers, k, k / 2, complements);
+    auto csac = CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>(kMers, size_t_max(k), size_t_max(depth_cutoff), complements);
     csac.construct_graph();
+    
     csac.print_stats();
     // csac.print_topological();
+    // csac.print_sorted();
+    
     csac.convert_to_searchable_representation();
     csac.set_search_parameters(k);
     // csac.set_search_parameters(0);
-    //csac.print_sorted();
 
-    /*auto indexes = csac.compute_indexes(k - depth_cutoff);
-    decode_and_print_indexes(kMers, indexes, os, k);//, true, true);
-    os << std::endl;*/
     csac.compute_and_print_result(os);
+}
+
+template <typename kmer_t, size_t K_BIT_SIZE>
+void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements){
+    size_t limit = kMers.size() * (size_t(1) << K_BIT_SIZE);
+
+    if (limit < (size_t(1) << 15))       compute_with_cs_ac<kmer_t, uint16_t, K_BIT_SIZE>(kMers, os, k, complements);
+    else if (limit < (size_t(1) << 31))  compute_with_cs_ac<kmer_t, uint32_t, K_BIT_SIZE>(kMers, os, k, complements);
+    else                                 compute_with_cs_ac<kmer_t, uint64_t, K_BIT_SIZE>(kMers, os, k, complements);
 }
 
 template <typename kmer_t>
 void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
     try {
         if (kMers.empty()) {
-            throw std::invalid_argument("Input cannot be empty");
+            throw std::invalid_argument("Input cannot be empty.");
         }
 
         // Add complementary k-mers.
@@ -104,18 +103,21 @@ void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool co
                 kMers[i + n] = ReverseComplement(kMers[i], k);
             }
         }
-        
-        // size_t limit = kMers.size() * k;
-        size_t limit = kMers.size() * 256; // While using fixed K_SIZE
-        if (limit < (size_t(1) << 15))
-            compute_with_cs_ac(kMers, os, uint16_t(k), complements);
-        else if (limit < (size_t(1) << 31))
-            compute_with_cs_ac(kMers, os, uint32_t(k), complements);
-        else
-            compute_with_cs_ac(kMers, os, uint64_t(k), complements);
+
+#ifndef DEBUG_FAST_COMPILATION
+        if (k < 16)        set_limit_and_compute_with_cs_ac<kmer_t, 4>(kMers, os, k, complements);
+        else if (k < 32)   set_limit_and_compute_with_cs_ac<kmer_t, 5>(kMers, os, k, complements);
+        else if (k < 64)   set_limit_and_compute_with_cs_ac<kmer_t, 6>(kMers, os, k, complements);
+        else if (k < 128)  set_limit_and_compute_with_cs_ac<kmer_t, 7>(kMers, os, k, complements);
+        else {
+            throw std::invalid_argument("Values of k above 127 are not supported.");
+        }
+#else
+        set_limit_and_compute_with_cs_ac<kmer_t, 7>(kMers, os, k, complements);
+#endif
     }
     catch (const std::exception& e){
-        std::cerr << "Exception was thrown: " << e.what() << std::endl;
+        std::cerr << std::endl << "Exception was thrown: " << e.what() << std::endl;
     }
 }
 
