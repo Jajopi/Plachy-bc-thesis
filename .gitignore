@@ -6,3 +6,4 @@ src/version.h
 outputs
 data/big
 count_kmers.py
+count_noncomplement_kmers.py
