@@ -70,8 +70,8 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
 
     /* Handle streaming algorithm separately. */
     if (algorithm == "streaming") {
-        WriteName(k, *of);
-        Streaming(path, *of,  k , complements);
+        /*WriteName(k, *of);
+        Streaming(path, *of,  k , complements);*/
     }
     /* Handle hash table based algorithms separately so that they consume less memory. */
     else if (algorithm == "global" || algorithm == "local") {
@@ -94,14 +94,14 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         }
         else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
     } else if (algorithm == "ILP" || algorithm == "ilp") {
-        auto *kMers = wrapper.kh_init_set();
+        /*auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
         size_t lower_bound = LowerBoundLength(wrapper, kMerVec, k, complements);
         
-        GlobalILP(kMerVec, *of, k, complements, lower_bound);
-    /*} else if (algorithm == "hog") {
-        auto *kMers = wrapper.kh_init_set();
+        GlobalILP(kMerVec, *of, k, complements, lower_bound);*/
+    } else if (algorithm == "hog") {
+        /*auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
 
@@ -113,7 +113,7 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
 
         GlobalCS_AC(kMerVec, *of, k, complements);
     } else {
-        auto data = ReadFasta(path);
+        /*auto data = ReadFasta(path);
         if (data.empty()) {
             std::cerr << "Path '" << path << "' not to a fasta file." << std::endl;
             return Help();
@@ -131,7 +131,7 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         else {
             std::cerr << "Algorithm '" << algorithm << "' not supported." << std::endl;
             return Help();
-        }
+        }*/
     }
     *of << std::endl;
     return 0;
@@ -235,6 +235,7 @@ int main(int argc, char **argv) {
         std::cerr << "Lower bound computation supported only for hash table global." << std::endl;
         return Help();
     }
+#ifndef DEBUG_FAST_COMPILATION
     if (k < 32) {
         return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     } else if (k < 64) {
@@ -242,4 +243,7 @@ int main(int argc, char **argv) {
     } else {
         return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     }
+#else
+    return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+#endif
 }
