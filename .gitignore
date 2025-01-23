@@ -5,3 +5,4 @@ kmercamel
 src/version.h
 outputs
 data/big
+count_kmers.py
