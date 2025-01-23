@@ -129,11 +129,11 @@ class CuttedSortedAC {
 
     void push_failure_of_node_into_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>>& hq,
                                       size_t_max node_index, size_t_max origin_leaf_index, size_t_max current_priority);
+    void squeeze_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>>& hq);
     
     size_t_max find_complement_index(size_t_max kmer_index);
 
     size_t_max print_result_from_indexes(std::ostream& os, std::vector<size_t_max>& indexes);
-    
 public:
     CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
         kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) { sort_and_remove_duplicates(kMers); };
@@ -299,12 +299,13 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
     size_t_max last_origin_leaf = INVALID_NODE(), last_node = INVALID_NODE();
 
     size_t_max max_hq_length = 0;
+    size_t_max HQ_SIZE_THRESHOLD = N * K / 3;
 
     UnionFind components(N);
 
     while (!hq.empty() && components.count() - resigned_count > 1){
         size_t_max hq_length = hq.size(); if (max_hq_length < hq_length) max_hq_length = hq_length;
-        // if (hq_length >= HQ_THRESHOLD) squeeze_hq(hq); // TODO implement
+        if (hq_length >= HQ_SIZE_THRESHOLD) squeeze_hq(hq); // TODO implement
 
         auto p = hq.front(); std::pop_heap(hq.begin(), hq.end()); hq.pop_back();
         // LOG_STREAM << std::get<0>(p) << ' ' << std::get<1>(p) << ' ' << std::get<2>(p) << std::endl;
@@ -372,7 +373,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
     for (size_t_max i = 0; i < N; ++i){
         if (components.find(i) == i){ // Begining of a chain
             if (COMPLEMENTS && nodes[i].resigned()){
-                if (nodes[nodes[i].complement].resigned()) nodes[i].unset_resigned(); // Use kmer from res-res pair only once
+                if (nodes[nodes[i].complement_index].resigned()) nodes[i].unset_resigned(); // Use kmer from res-res pair only once
                 else continue;
             }
             size_t_max actual = i;
@@ -483,6 +484,22 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node
     }
 
     hq.push_back(std::make_tuple(failure_priority, node.failure, origin_leaf_index)); std::push_heap(hq.begin(), hq.end());
+}
+
+template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
+inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::squeeze_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> &hq) {
+    bucket_sort_hq(hq); // TODO implement
+    size_t_max size = hq.size(), shift = 0;
+    for (size_t_max i = 1; i < size; ++i){
+        if (nodes[std::get<2>(hq[i - 1])].found_next()) ++shift;
+        else if (std::get<1>(hq[i]) == std::get<1>(hq[i - 1]) && std::get<2>(hq[i]) == std::get<2>(hq[i - 1])){
+            if (std::get<0>(hq[i]) < std::get<0>(hq[i - 1])) std::swap(hq[i], hq[i - 1]);
+            ++shift;
+        }
+        hq[i - shift] = hq[i];
+    }
+    hq.resize(size - shift);
+    std::make_heap(hq);
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
