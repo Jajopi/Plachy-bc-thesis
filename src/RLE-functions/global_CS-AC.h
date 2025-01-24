@@ -9,7 +9,7 @@
 #include "CS-AC.h"
 
 #define RESERVED_MEMORY_GB 4
-#define DEBUG_FAST_COMPILATION
+// #define DEBUG_FAST_COMPILATION
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
 #ifdef USING_WINDOWS // NOT TESTED
@@ -36,8 +36,10 @@ size_t compute_max_depth(size_t kmer_count){
 
     size_t storing_memory_per_kmer = sizeof(kmer_t);
     
-    size_t constructing_memory_per_kmer = 2 * sizeof(size_t_max) * 2; // failures, copied when shortening
-    size_t searching_memory_per_kmer = sizeof(size_t_max) + sizeof(size_t_max); // unionfind, indexes, not counting hq
+    size_t constructing_memory_per_kmer = 2 * sizeof(size_t_max) * 2;   // failures, copied when shortening
+    size_t searching_memory_per_kmer = sizeof(size_t_max)               // unionfind
+                                    //  + sizeof(size_t_max) * 3           // hq, 3 numbers per element, up to N elements
+                                     + 1;                               // Local search bitmask 
     
     size_t memory_reserved_per_kmer = storing_memory_per_kmer + std::max(constructing_memory_per_kmer, searching_memory_per_kmer);
     size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kmer_count;
@@ -46,7 +48,7 @@ size_t compute_max_depth(size_t kmer_count){
         throw std::invalid_argument("Not enough memory for storing the data.");
     }
 
-    size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers) / 2; // half reserved for hq
+    size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers) / 2; // Half for hq + visited
     size_t available_nodes = (available_memory_for_nodes) / sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>);
     size_t available_depth = available_nodes / kmer_count;
 
@@ -81,15 +83,6 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
 
 template <typename kmer_t, size_t K_BIT_SIZE>
 void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements){
-    size_t limit = kMers.size() * (size_t(1) << K_BIT_SIZE);
-
-    if (limit < (size_t(1) << 15))       compute_with_cs_ac<kmer_t, uint16_t, K_BIT_SIZE>(kMers, os, k, complements);
-    else if (limit < (size_t(1) << 31))  compute_with_cs_ac<kmer_t, uint32_t, K_BIT_SIZE>(kMers, os, k, complements);
-    else                                 compute_with_cs_ac<kmer_t, uint64_t, K_BIT_SIZE>(kMers, os, k, complements);
-}
-
-template <typename kmer_t>
-void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
     try {
         if (kMers.empty()) {
             throw std::invalid_argument("Input cannot be empty.");
@@ -104,20 +97,31 @@ void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool co
             }
         }
 
-#ifndef DEBUG_FAST_COMPILATION
-        if (k < 16)        set_limit_and_compute_with_cs_ac<kmer_t, 4>(kMers, os, k, complements);
-        else if (k < 32)   set_limit_and_compute_with_cs_ac<kmer_t, 5>(kMers, os, k, complements);
-        else if (k < 64)   set_limit_and_compute_with_cs_ac<kmer_t, 6>(kMers, os, k, complements);
-        else if (k < 128)  set_limit_and_compute_with_cs_ac<kmer_t, 7>(kMers, os, k, complements);
-        else {
-            throw std::invalid_argument("Values of k above 127 are not supported.");
-        }
-#else
-        set_limit_and_compute_with_cs_ac<kmer_t, 7>(kMers, os, k, complements);
-#endif
+        size_t limit = kMers.size() * (size_t(1) << K_BIT_SIZE);
+
+        if (limit < (size_t(1) << 15))       compute_with_cs_ac<kmer_t, uint16_t, K_BIT_SIZE>(kMers, os, k, complements);
+        else if (limit < (size_t(1) << 31))  compute_with_cs_ac<kmer_t, uint32_t, K_BIT_SIZE>(kMers, os, k, complements);
+        else                                 compute_with_cs_ac<kmer_t, uint64_t, K_BIT_SIZE>(kMers, os, k, complements);
     }
     catch (const std::exception& e){
         std::cerr << std::endl << "Exception was thrown: " << e.what() << std::endl;
     }
+}
+
+template <typename kmer_t>
+void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements);
+
+/*template <typename kmer32_t>
+void GlobalCS_AC(std::vector<kmer32_t>& kMers, std::ostream& os, size_t k, bool complements) {
+    set_limit_and_compute_with_cs_ac<kmer32_t, 4>(kMers, os, k, complements);
+}*/
+void GlobalCS_AC(std::vector<kmer64_t>& kMers, std::ostream& os, size_t k, bool complements) {
+    set_limit_and_compute_with_cs_ac<kmer64_t, 5>(kMers, os, k, complements);
+}
+void GlobalCS_AC(std::vector<kmer128_t>& kMers, std::ostream& os, size_t k, bool complements) {
+    set_limit_and_compute_with_cs_ac<kmer128_t, 6>(kMers, os, k, complements);
+}
+void GlobalCS_AC(std::vector<kmer256_t>& kMers, std::ostream& os, size_t k, bool complements) {
+    set_limit_and_compute_with_cs_ac<kmer256_t, 7>(kMers, os, k, complements);
 }
 
