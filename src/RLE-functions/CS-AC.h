@@ -299,6 +299,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
 
     std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> hq; // priority, current node_index, origin_leaf_index
     size_t_max SIZE_THRESHOLD = N * (K - DEPTH_CUTOFF - 1) / 4; // Squeeze hq when reached
+    if (SIZE_THRESHOLD < N) SIZE_THRESHOLD = N;
     hq.reserve(SIZE_THRESHOLD + N / 4); // Should be never reached thanks to squeezing
     size_t_max REMAINING_THRESHOLD = (K - DEPTH_CUTOFF) * sizeof(size_t_max) * 8 / 4; // Number of bits available for each leaf
     // REMAINING_THRESHOLD * N takes up the same amount of elements as hq<size_t_max> (but hq has 3 * size_t_max numbers)
@@ -325,11 +326,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
         size_t_max hq_length = hq.size();
         if (max_hq_length < hq_length) max_hq_length = hq_length;
         if (hq_length > SIZE_THRESHOLD){
-            LOG_STREAM << components.count() - resigned_count << ": ";
+            // LOG_STREAM << components.count() - resigned_count << ": ";
             squeeze_hq(hq);
         }
 
         auto t = hq.front(); std::pop_heap(hq.begin(), hq.end()); hq.pop_back();
+        // LOG_STREAM << std::get<0>(t) << ' ' << std::get<1>(t) << ' ' << std::get<2>(t) % N << ' ' << (std::get<2>(t) >= N);
 
         size_t_max origin_leaf_index_plus_run = std::get<2>(t); // + N if new run was started
         size_t_max origin_leaf_index = origin_leaf_index_plus_run % N;
@@ -346,6 +348,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
         if (node_index == root_node_index){
             origin_leaf_node.set_resigned();
             ++resigned_count;
+            // LOG_STREAM << " R" << std::endl;
             continue; // We resigned for this origin_leaf, it will be excluded from further search
         }
 
@@ -362,6 +365,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
             origin_leaf_node.set_found_next(); // Set next for current origin_leaf
             components.connect(origin_leaf_index, node.leaf_range_begin); // First one pointing to the second one = always point to the last one in a chain
             
+            // LOG_STREAM << " +" << std::endl;
             // if (COMPLEMENTS){
             //     nodes[nodes[node.leaf_range_begin].complement_index].set_found_previous_for_complement();
 
@@ -372,13 +376,18 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
             continue; // We connected current origin_leaf, it will be excluded from further search
         }
 
+        // LOG_STREAM << " /";
         for (size_t_max i = node.original_leaf_range_begin(); i < node.leaf_range_end; ++i){ // Search also through already used leaves
-            // if (i == origin_leaf_index) continue;
-            // if (nodes[i].resigned()) continue; // But not the ones pointing nowhere
+            if (i == origin_leaf_index) continue;
+            if (nodes[i].resigned()) continue; // But not the ones pointing nowhere
+            // LOG_STREAM << ' ' << i;
             push_failure_of_node_into_hq(hq, i, origin_leaf_index_plus_run, priority); // Add failure of that leaf
         }
 
+        // LOG_STREAM << " ... " << node.failure;
         push_failure_of_node_into_hq(hq, node_index, origin_leaf_index_plus_run, priority); // Add failure of current node
+
+        // LOG_STREAM << std::endl;
     }
 
     squeeze_hq(hq);
@@ -396,11 +405,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
         size_t_max hq_length = hq.size();
         if (max_hq_length < hq_length) max_hq_length = hq_length;
         if (hq_length > SIZE_THRESHOLD){ // Probably won't be needed
-            LOG_STREAM << components.count() - resigned_count << ": ";
+            // LOG_STREAM << components.count() - resigned_count << ": ";
             squeeze_hq(hq);
         }
 
         auto t = hq.front(); std::pop_heap(hq.begin(), hq.end()); hq.pop_back();
+        // LOG_STREAM << std::endl << std::get<0>(t) << ' ' << std::get<1>(t) << ' ' << std::get<2>(t) % N << ' ' << (std::get<2>(t) >= N);
 
         size_t_max origin_leaf_index_plus_run = std::get<2>(t); // + N if new run was started
         size_t_max origin_leaf_index = origin_leaf_index_plus_run % N;
@@ -414,6 +424,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
         if (node_index == root_node_index){
             origin_leaf_node.set_resigned();
             ++resigned_count;
+            // LOG_STREAM << " R";
             continue; // We resigned for this origin_leaf, it will be excluded from further search
         }
 
@@ -430,6 +441,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
             origin_leaf_node.set_found_next(); // Set next for current origin_leaf
             components.connect(origin_leaf_index, node.leaf_range_begin); // First one pointing to the second one = always point to the last one in a chain
             
+            // LOG_STREAM << " +";
             // if (COMPLEMENTS){
             //     nodes[nodes[node.leaf_range_begin].complement_index].set_found_previous_for_complement();
 
@@ -440,16 +452,20 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_and_print_re
             continue; // We connected current origin_leaf, it will be excluded from further search
         }
 
+        // LOG_STREAM << " /";
         for (size_t_max i = node.original_leaf_range_begin(); i < node.leaf_range_end; ++i){
-            // if (i == origin_leaf_index) continue;
-            // if (nodes[i].resigned()) continue;
+            if (i == origin_leaf_index) continue;
+            if (nodes[i].resigned()) continue;
 
             if (visited[origin_leaf_node.visited_marking_index * remaining_count + i]) continue;
             visited[origin_leaf_node.visited_marking_index * remaining_count + i] = true;
+
+            // LOG_STREAM << ' ' << i;
             
             push_failure_of_node_into_hq(hq, i, origin_leaf_index_plus_run, priority); // Add failure of that leaf
         }
 
+        // LOG_STREAM << " ... " << node.failure;
         push_failure_of_node_into_hq(hq, node_index, origin_leaf_index_plus_run, priority); // Add failure of current node
     }
 
@@ -605,19 +621,24 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node
     Node& node = nodes[node_index];
     Node& failure_node = nodes[node.failure];
 
-    size_t_max failure_priority = current_priority - (node.depth() - failure_node.depth()) * BASE_EXTENSION_SCORE;
+    size_t_max node_depth = (node_index < N) ? K : node.depth(); // Leaves have always depth of K and complement_index is stored in depth field
+    size_t_max failure_priority = current_priority - (node_depth - failure_node.depth()) * BASE_EXTENSION_SCORE;
     if (origin_leaf_index < N && // Run was not already interrupted
-        (node.depth() == K - 1 || (node.depth() == K && failure_node.depth() < K - 1))){ // But will be now
+        (node_depth == K - 1 || (node_depth == K && failure_node.depth() < K - 1))){ // But will be now
         failure_priority -= NEW_RUN_SCORE;
         origin_leaf_index += N;
     }
+    // LOG_STREAM << ' ' << failure_priority << ' ' << current_priority << ' ' << node_depth << ' ' << failure_node.depth();
+
+    if (origin_leaf_index < N && INVALID_NODE() - failure_priority >= K * BASE_EXTENSION_SCORE) return;
+    if (origin_leaf_index >= N && INVALID_NODE() - failure_priority >= K * BASE_EXTENSION_SCORE + NEW_RUN_SCORE) return;
 
     hq.push_back(std::make_tuple(failure_priority, node.failure, origin_leaf_index)); std::push_heap(hq.begin(), hq.end());
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::squeeze_hq(std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> &hq) {
-    LOG_STREAM << "Squeezing... ";
+    // LOG_STREAM << "Squeezing... ";
     // sort_hq_by_nodes(hq); // TODO maybe implement bucket sort?
     std::sort(hq.begin(), hq.end(), [](auto first, auto second) -> bool {
         if (std::get<1>(first) == std::get<1>(second)) return std::get<2>(first) < std::get<2>(second);
@@ -636,7 +657,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::squeeze_hq(std::vect
     hq.resize(size - shift);
     std::make_heap(hq.begin(), hq.end());
 
-    LOG_STREAM << size << " / " << hq.size() << " ~ " << size / hq.size() << std::endl;
+    // LOG_STREAM << size << " / " << hq.size() << " ~ " << size / hq.size() << std::endl;
 }
 
 /*template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
@@ -663,11 +684,13 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::find_complemen
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(std::ostream& os, UnionFind<size_t_max>& components) {
-    size_t_max total_length = 0;
-    size_t_max run_count = 1;
+    std::vector<size_t_max> indexes(N);
+    std::vector<bool> new_runs(N);
+    size_t_max last_index = N - 1;
 
-    bool first = true, new_run = false;
-    kmer_t last_kmer = 0;
+    // for (size_t_max i = 0; i < N; ++i) LOG_STREAM << i << ' ' << nodes[i].previous() << std::endl;
+
+    bool new_run = false;
     for (size_t_max i = 0; i < N; ++i){
         if (components.find(i) == i){ // || (COMPLEMENTS && components.find(i) == nodes[i].complement_index && !nodes[i].found_previous_for_complement())){
 
@@ -678,31 +701,38 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
 
             size_t_max actual = i;
             while (actual != INVALID_LEAF()){
-                if (first){
-                    first = false;
-                    last_kmer = ReverseComplement(kMers[actual], K); // kmer_index of each leaf is it's index
-                    actual = nodes[actual].previous();
-                    continue;
-                }
-
                 if (actual >= N) new_run = true;
                 actual %= N;
 
-                kmer_t actual_kmer = ReverseComplement(kMers[actual], K);
-                size_t_max ov = compute_max_overlap(last_kmer, actual_kmer, K);
+                indexes[last_index] = actual;
+                new_runs[last_index] = new_run;
+                --last_index;
                 
-                if (new_run) print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
-                else print_kmer(last_kmer, K, os, size_t_max(K - ov));
-
-                total_length += K - ov;
-                if (new_run) ++run_count;
-
-                last_kmer = actual_kmer;
                 actual = nodes[actual].previous();
                 new_run = false;
             }
             new_run = true;
         }
+    }
+
+    size_t_max total_length = 0;
+    size_t_max run_count = 0;
+
+    kmer_t last_kmer = kMers[indexes[0]];
+    for (size_t_max i = 1; i < N; ++i){
+        kmer_t actual_kmer = kMers[indexes[i]];
+        size_t_max ov = compute_max_overlap(last_kmer, actual_kmer, K);
+
+        // print_kmer(kMers[indexes[i]], K, LOG_STREAM); LOG_STREAM << ' ' << new_runs[i] << std::endl;
+
+        if (new_runs[i - 1]){
+            print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
+            ++run_count;
+        }
+        else print_kmer(last_kmer, K, os, size_t_max(K - ov));
+
+        total_length += K - ov;
+        last_kmer = actual_kmer;
     }
     print_kmer_masked(last_kmer, K, os);
     total_length += K;
@@ -711,6 +741,40 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     LOG_STREAM << "Total length: " << total_length << std::endl;
     LOG_STREAM << "Run count: " << run_count << std::endl;
     return total_length;
+                
+
+                /*if (actual >= N) new_run = true;
+                actual %= N;
+
+                kmer_t actual_kmer = kMers[actual];
+                size_t_max ov = compute_max_overlap(actual_kmer, last_kmer, K); // actual_kmer is just before last_kmer
+                
+                if (new_run) print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
+                else print_kmer(last_kmer, K, os, size_t_max(K - ov));
+                // else print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
+                // else {
+                //     print_kmer(ReverseComplement(actual_kmer, K), K, os);
+                //     os << ' ';
+                //     print_kmer(ReverseComplement(last_kmer, K), K, os);
+                //     os << ' ' << ov << std::endl;
+                // }
+
+                if (!new_run && ov < K - 1){
+                    print_kmer(ReverseComplement(actual_kmer, K), K, LOG_STREAM);
+                    LOG_STREAM << ' ';
+                    print_kmer(ReverseComplement(last_kmer, K), K, LOG_STREAM);
+                    LOG_STREAM << ' ' << ov << std::endl;
+                }
+
+                total_length += K - ov;
+                if (new_run) ++run_count;
+
+                last_kmer = actual_kmer;
+                actual = nodes[actual].previous();
+                new_run = false;
+        }
+    }*/
+    
 }
 
 // Debug printing
