@@ -6,7 +6,8 @@
 
 #include "../kmers.h"
 
-#include "CS-AC.h"
+#include "CS-AC_construction.h"
+#include "CS-AC_searching.h"
 
 #define RESERVED_MEMORY_GB 4
 // #define DEBUG_FAST_COMPILATION
@@ -38,8 +39,9 @@ size_t compute_max_depth(size_t kmer_count){
     
     size_t constructing_memory_per_kmer = 2 * sizeof(size_t_max) * 2;   // failures, copied when shortening
     size_t searching_memory_per_kmer = sizeof(size_t_max)               // unionfind
-                                    //  + sizeof(size_t_max) * 3           // hq, 3 numbers per element, up to N elements
-                                     + 1;                               // Local search bitmask 
+                                     + sizeof(size_t_max) * 3           // hq, 3 numbers per element, up to N elements
+                                     + sizeof(size_t_max)               // backtracks
+                                     + sizeof(size_t_max);              // backtrack_indexes
     
     size_t memory_reserved_per_kmer = storing_memory_per_kmer + std::max(constructing_memory_per_kmer, searching_memory_per_kmer);
     size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kmer_count;
@@ -48,7 +50,7 @@ size_t compute_max_depth(size_t kmer_count){
         throw std::invalid_argument("Not enough memory for storing the data.");
     }
 
-    size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers) / 2; // Half for hq + visited
+    size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers);
     size_t available_nodes = (available_memory_for_nodes) / sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>);
     size_t available_depth = available_nodes / kmer_count;
 
@@ -78,7 +80,8 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     csac.set_search_parameters(k);
     // csac.set_search_parameters(0);
 
-    csac.compute_and_print_result(os);
+    csac.compute_result();
+    csac.print_result(os);
 }
 
 template <typename kmer_t, size_t K_BIT_SIZE>
