@@ -16,6 +16,7 @@ public:
     UnionFind(size_t_max size) : roots(size), component_count(size) {
         for (size_t_max i = 0; i < size; ++i) roots[i] = i;
     };
+    UnionFind() = default;
     
     inline size_t_max find(size_t_max x) {
         size_t_max root = roots[x];
@@ -129,10 +130,10 @@ class CuttedSortedAC {
     size_t_max NEW_RUN_SCORE = INVALID_NODE();
     size_t_max BASE_EXTENSION_SCORE = INVALID_NODE();
 
-    std::vector<std::tuple<size_t_max, size_t_max, size_t_max>>& hq;
-    UnionFind<size_t_max>& components;
-    std::vector<size_t_max>& backtracks;
-    std::vector<size_t_max>& backtrack_indexes;
+    std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> hq;
+    UnionFind<size_t_max> components;
+    std::vector<size_t_max> backtracks;
+    std::vector<size_t_max> backtrack_indexes;
 
     void sort_and_remove_duplicate_kmers();
 
@@ -271,7 +272,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
     for (size_t_max i = 0; i < N; ++i){ // Convert leaves
         Node& node = nodes[i];
         node.reset_bitmask_and_next();
-        node.next_unused_leaf = INVALID_LEAF();
+        node.previous = INVALID_LEAF();
         if (COMPLEMENTS) node.complement_index = find_complement_kmer_index(node.kmer_index());
         else node.complement_index = INVALID_LEAF(); // Let that crash if used somewhere
     }
