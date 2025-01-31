@@ -32,8 +32,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
 
-    size_t_max max_priority_drop = (K - DEPTH_CUTOFF) + NEW_RUN_SCORE;
-    for (size_t_max priority_drop_limit = 2; priority_drop_limit < max_priority_drop; priority_drop_limit += 2){
+    size_t_max max_priority_drop = (K - DEPTH_CUTOFF) * BASE_EXTENSION_SCORE + NEW_RUN_SCORE;
+    for (size_t_max priority_drop_limit = BASE_EXTENSION_SCORE; priority_drop_limit < max_priority_drop; priority_drop_limit += BASE_EXTENSION_SCORE){
         size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
         LOG_STREAM << uncompleted_leaf_count << std::endl;
         for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
@@ -231,9 +231,11 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     kmer_t last_kmer = 0;
     for (size_t_max i = 0; i < N; ++i){
         if (components.find(i) != i) continue;
+        if (COMPLEMENTS && nodes[i].complement_completed()) continue;
 
         bool new_run = true;
         actual = i;
+        // LOG_STREAM << '-' << i << '-';
         while (actual != INVALID_LEAF()){
             if (first){
                 first = false;
@@ -253,7 +255,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
                 print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
                 ++run_count;
             }
-            else print_kmer(last_kmer, K, os, size_t_max(K - ov));
+            else print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
 
             last_kmer = actual_kmer;
             total_length += K - ov;
@@ -274,7 +276,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
                         print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
                         ++run_count;
                     }
-                    else print_kmer(last_kmer, K, os, size_t_max(K - ov));
+                    else print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
 
                     last_kmer = actual_kmer;
                     total_length += K - ov;
