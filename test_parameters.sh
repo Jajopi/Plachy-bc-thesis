@@ -2,26 +2,31 @@
 
 INPUT="$1"
 K="$2"
+TEST_MODE="$3"
+# "C" for counting kmers check - slow
+
 DIR="test_correctness_outputs"
 TIME_FORMAT_STRING="time:\t%E\nmemory:\t%M"
 
 mkdir -p "$DIR";
 
+/usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_time.txt \
+    ./kmercamel -p "$INPUT" -k "$K" -a csac > "$DIR"/csac.txt
 /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_time.txt \
     ./kmercamel -p "$INPUT" -k "$K" > "$DIR"/gg_raw.txt && \
     ./kmercamel optimize -p "$DIR"/gg_raw.txt -a runs -k "$K" > "$DIR"/gg.txt
-/usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_time.txt \
-    ./kmercamel -p "$INPUT" -k "$K" -a csac > "$DIR"/csac.txt
 
 # ./kmercamel -p "$INPUT" -k "$K" -c > "$DIR"/gg_c.txt
 # ./kmercamel -p "$INPUT" -k "$K" -a csac -c > "$DIR"/csac_c.txt
 
 echo =================
 
-O1="$(./count_noncomplement_kmers.py -p "$DIR"/gg.txt -k "$K")"
-O2="$(./count_noncomplement_kmers.py -p "$DIR"/csac.txt -k "$K" -t)"
-# O3="$(./count_kmers.py -p "$DIR"/gg_c.txt -k "$K")"
-# O4="$(./count_kmers.py -p "$DIR"/csac_c.txt -k "$K" -t)"
+if [ "$TEST_MODE" = "C" ]; then
+    O1="$(./count_noncomplement_kmers.py -p "$DIR"/gg.txt -k "$K")"
+    O2="$(./count_noncomplement_kmers.py -p "$DIR"/csac.txt -k "$K" -t)"
+    # O3="$(./count_kmers.py -p "$DIR"/gg_c.txt -k "$K")"
+    # O4="$(./count_kmers.py -p "$DIR"/csac_c.txt -k "$K" -t)"
+fi
 
 L1="$(cat "$DIR"/gg.txt | tail -n 1 | wc -m)"
 L2="$(cat "$DIR"/csac.txt | tail -n 1 | wc -m)"
