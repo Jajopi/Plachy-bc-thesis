@@ -127,6 +127,7 @@ class CuttedSortedAC {
     bool COMPLEMENTS;        // whether or not complements are used
 
     bool CONVERTED_TO_SEARCHABLE = false;
+    bool COMPUTED_RESULT = false;
     size_t_max NEW_RUN_SCORE = INVALID_NODE();
     size_t_max BASE_EXTENSION_SCORE = INVALID_NODE();
 
@@ -283,8 +284,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameters(
             size_t_max new_run_score, size_t_max base_extension_score) {
-    NEW_RUN_SCORE = new_run_score * 2 + 1;
-    BASE_EXTENSION_SCORE = base_extension_score * 2;
+    NEW_RUN_SCORE = new_run_score;
+    BASE_EXTENSION_SCORE = base_extension_score;
 }
 
 // Sorting

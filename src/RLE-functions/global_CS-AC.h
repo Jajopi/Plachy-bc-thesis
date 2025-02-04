@@ -72,7 +72,7 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     auto csac = CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>(kMers, size_t_max(k), size_t_max(depth_cutoff), complements);
     csac.construct_graph();
     
-    csac.print_stats();
+    // csac.print_stats();
     // csac.print_topological();
     // csac.print_sorted();
     
