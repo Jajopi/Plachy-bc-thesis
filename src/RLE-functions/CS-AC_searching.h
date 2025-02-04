@@ -34,12 +34,16 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
 
-    LOG_STREAM << "Leaves ( " << N << " ) remaining: " << std::setfill(' ') << std::setw(10) << N; LOG_STREAM.flush();
-
     size_t_max max_priority_drop = (K - DEPTH_CUTOFF) * BASE_EXTENSION_SCORE + NEW_RUN_SCORE;
+
+    size_t_max remaining_iterations = max_priority_drop / BASE_EXTENSION_SCORE;
+    LOG_STREAM << "Leaves: " << N << ", iterations: " << remaining_iterations << std::endl;
+    LOG_STREAM << std::setfill(' ') << std::setw(10) << N << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
+
     for (size_t_max priority_drop_limit = BASE_EXTENSION_SCORE; priority_drop_limit <= max_priority_drop; priority_drop_limit += BASE_EXTENSION_SCORE){
         size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
-        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b" << std::setfill(' ') << std::setw(10) << uncompleted_leaf_count; LOG_STREAM.flush();
+        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setfill(' ') << std::setw(10) << uncompleted_leaf_count << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
+        --remaining_iterations;
         
         for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
             size_t_max leaf_index = uncompleted_leaves[i];

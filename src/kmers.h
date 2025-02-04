@@ -8,8 +8,9 @@
 
 #include "ac/kmers_ac.h"
 
-typedef __uint128_t kmer128_t;
+typedef uint32_t kmer32_t;
 typedef uint64_t kmer64_t;
+typedef __uint128_t kmer128_t;
 typedef uint256_t kmer256_t;
 
 static const uint8_t nucleotideToInt[] = {
@@ -55,6 +56,15 @@ template<typename U, int len>
 struct cmask<U, len, 0> {
     static const U v = 0;
 };
+
+inline kmer32_t word_reverse_complement(kmer32_t w) {
+    typedef kmer32_t U;
+    w = ((w >> 2)  & cmask<U, 2 >::v) | ((w & cmask<U, 2 >::v) << 2);
+    w = ((w >> 4)  & cmask<U, 4 >::v) | ((w & cmask<U, 4 >::v) << 4);
+    w = ((w >> 8)  & cmask<U, 8 >::v) | ((w & cmask<U, 8 >::v) << 8);
+    w = ( w >> 16                   ) | ( w                    << 16);
+    return ((U)-1) - w;
+}
 
 /// Compute the reverse complement of a word.
 /// Copyright: Jellyfish GPL-3.0

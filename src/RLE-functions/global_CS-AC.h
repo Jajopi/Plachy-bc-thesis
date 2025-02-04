@@ -83,7 +83,7 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     
     csac.convert_to_searchable_representation();
     csac.set_search_parameters(k);
-    // csac.set_search_parameters(0);
+    // std::cerr << log(k) << std::endl;
 
     csac.compute_result();
     csac.print_result(os);
@@ -119,10 +119,9 @@ void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& 
 template <typename kmer_t>
 void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements);
 
-/*template <typename kmer32_t>
 void GlobalCS_AC(std::vector<kmer32_t>& kMers, std::ostream& os, size_t k, bool complements) {
     set_limit_and_compute_with_cs_ac<kmer32_t, 4>(kMers, os, k, complements);
-}*/
+}
 void GlobalCS_AC(std::vector<kmer64_t>& kMers, std::ostream& os, size_t k, bool complements) {
     set_limit_and_compute_with_cs_ac<kmer64_t, 5>(kMers, os, k, complements);
 }

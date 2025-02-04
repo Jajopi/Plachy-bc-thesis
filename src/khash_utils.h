@@ -34,6 +34,9 @@ KHASH_MAP_INIT_INT128(P128, size_t)
 KHASH_SET_INIT_INT64(S64)
 KHASH_MAP_INIT_INT64(P64, size_t)
 
+KHASH_SET_INIT_INT(S32)
+KHASH_MAP_INIT_INT(P32, size_t)
+
 #define INIT_KHASH_WRAPPER(type) \
     struct kmer_dict##type##_t { \
         inline kh_S##type##_t *kh_init_set() { \
@@ -74,6 +77,7 @@ KHASH_MAP_INIT_INT64(P64, size_t)
         }                        \
     };
 
+INIT_KHASH_WRAPPER(32)
 INIT_KHASH_WRAPPER(64)
 INIT_KHASH_WRAPPER(128)
 INIT_KHASH_WRAPPER(256)
