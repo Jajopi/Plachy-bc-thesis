@@ -57,18 +57,18 @@ struct CS_AC_Node {
         size_t_max leaf_range_begin; // changes // Searching
         size_t_max bitmask_and_next;            // Leaves while searching
     };
-    union {
+    /*union {
         size_t_max child_range_end;             // Construction
         size_t_max leaf_range_end;              // Searching
         size_t_max previous;                    // Leaves while searching, backtracking
-    };
+    };*/
 
     static inline size_t_max INVALID_LEAF() { return std::numeric_limits<size_t_max>::max() >> K_BIT_SIZE; };
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
     
-    CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child, size_t_max after_last_child) :
+    CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child/*, size_t_max after_last_child*/) :
         depth_and_kmer_index((kmer_index << K_BIT_SIZE) + depth), failure(INVALID_NODE()),
-        child_range_begin(first_child), child_range_end(after_last_child) {};
+        child_range_begin(first_child)/*, child_range_end(after_last_child)*/ {};
     
     void print(std::ostream& os) const; // Construction
 
@@ -107,8 +107,8 @@ inline void CS_AC_Node<size_t_max, K_BIT_SIZE>::print(std::ostream &os) const {
     os << ",\tCH: [ ";
     if (child_range_begin == INVALID_NODE()) os << "INV"; else os << child_range_begin;
     os << " - ";
-    if (child_range_end == INVALID_NODE()) os << "INV"; else os << child_range_end;
-    os << " )";
+    /*if (child_range_end == INVALID_NODE()) os << "INV"; else os << child_range_end;
+    os << " )";*/
 }
 
 
@@ -135,6 +135,9 @@ class CuttedSortedAC {
     UnionFind<size_t_max> components;
     std::vector<size_t_max> backtracks;
     std::vector<size_t_max> backtrack_indexes;
+    std::vector<size_t_max> previous;
+    std::vector<size_t_max> visited;
+    size_t_max visited_mark = 0;
 
     void sort_and_remove_duplicate_kmers();
 
@@ -184,7 +187,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     
     // Add leaves
     for (size_t_max i = 0; i < N; ++i){
-        current_nodes.emplace_back(i, K, i, i + 1);
+        current_nodes.emplace_back(i, K, i/*, i + 1*/);
         failures[i] = std::make_pair(i, i);
     }
 
@@ -216,7 +219,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
             size_t_max j = i;
             while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index()], K, depth)) ++j;
 
-            current_nodes.emplace_back(nodes[i].kmer_index(), depth, i, j);
+            current_nodes.emplace_back(nodes[i].kmer_index(), depth, i/*, j*/);
             
             if (new_node_on_failure_path){
                 nodes[failures[failure_index].second].failure = new_node_index;
@@ -241,7 +244,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
 
     for (Node node: current_nodes) nodes.push_back(node);
 
-    nodes.emplace_back(0, 0, nodes.size() - current_nodes.size(), nodes.size());
+    nodes.emplace_back(0, 0, nodes.size() - current_nodes.size()/*, nodes.size()*/);
     
     size_t_max root_node = nodes.size() - 1;
     for (size_t_max i = 0; i < root_node; ++i){
@@ -268,12 +271,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
     for (size_t_max i = N; i < node_count; ++i){ // Convert internal nodes - must be before leaves
         Node& node = nodes[i];
         node.leaf_range_begin = nodes[node.child_range_begin].child_range_begin;
-        node.leaf_range_end = nodes[node.child_range_end - 1].child_range_end;
+        // node.leaf_range_end = nodes[node.child_range_end - 1].child_range_end;
     }
     for (size_t_max i = 0; i < N; ++i){ // Convert leaves
         Node& node = nodes[i];
         node.reset_bitmask_and_next();
-        node.previous = INVALID_LEAF();
+        // node.previous = INVALID_LEAF();
         if (COMPLEMENTS) node.complement_index = find_complement_kmer_index(node.kmer_index());
         else node.complement_index = INVALID_LEAF(); // Let that crash if used somewhere
     }
@@ -439,8 +442,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_topological(st
 
     if (root < N) return;
     
-    for (size_t_max i = node.child_range_begin; i < node.child_range_end; ++i){
+    /*for (size_t_max i = node.child_range_begin; i < node.child_range_end; ++i){
         if (i == INVALID_NODE()) break;
         print_topological(os, i, depth + 1);
-    }
+    }*/
 }

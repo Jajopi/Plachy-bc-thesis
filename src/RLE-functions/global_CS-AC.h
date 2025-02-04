@@ -41,10 +41,14 @@ size_t compute_max_depth(size_t kmer_count){
     size_t searching_memory_per_kmer = sizeof(size_t_max)               // unionfind
                                      + sizeof(size_t_max) * 3           // hq, 3 numbers per element, up to N elements
                                      + sizeof(size_t_max)               // backtracks
-                                     + sizeof(size_t_max);              // backtrack_indexes
+                                     + sizeof(size_t_max)               // backtrack_indexes
+                                     + sizeof(size_t_max)               // previous
+                                     + sizeof(size_t_max);              // visited
     
     size_t memory_reserved_per_kmer = storing_memory_per_kmer + std::max(constructing_memory_per_kmer, searching_memory_per_kmer);
     size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kmer_count;
+
+    // std::cerr << "Memory reserved for kmers: " << memory_reserved_for_kmers << " ( " << kmer_count << " )" << std::endl;
     
     if (available_memory < memory_reserved_for_kmers){
         throw std::invalid_argument("Not enough memory for storing the data.");
@@ -53,6 +57,7 @@ size_t compute_max_depth(size_t kmer_count){
     size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers);
     size_t available_nodes = (available_memory_for_nodes) / sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>);
     size_t available_depth = available_nodes / kmer_count;
+    // std::cerr << "Available nodes: " << available_nodes << ' ' << sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>) << std::endl;
 
     if (available_depth < 3){ // at least two top levels + current_nodes
         throw std::invalid_argument("Not enough memory for computation.");

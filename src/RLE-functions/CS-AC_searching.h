@@ -28,6 +28,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     components = UnionFind(N);
     backtracks.reserve(N); // Chains for leaves where backtracking is needed
     backtrack_indexes.resize(N, INVALID_LEAF()); // Indexes into backtracks for each leaf
+    previous.resize(N);
+    visited.resize(N);
 
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
@@ -71,7 +73,12 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
     if (priority_drop_limit == BASE_EXTENSION_SCORE){
         Node& leaf_node = nodes[leaf_index];
         Node& failure_node = nodes[leaf_node.failure];
-        for (size_t_max i = failure_node.child_range_begin; i < failure_node.child_range_end; ++i){
+        if (failure_node.depth() < K - 1) return false;
+        
+        size_t_max leaf_range_end = nodes[leaf_node.failure + 1].original_leaf_range_begin();
+        if (leaf_range_end < failure_node.leaf_range_begin) leaf_range_end = N;
+        
+        for (size_t_max i = failure_node.leaf_range_begin; i < leaf_range_end; ++i){
             if (!nodes[i].used() && !components.are_connected(leaf_index, i)){
                 nodes[i].set_used();
                 leaf_node.set_next(i);
@@ -89,8 +96,8 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
     
     size_t_max root_node_index = nodes.size() - 1;
     Node& leaf_node = nodes[leaf_index];
-    
-    std::vector<bool> visited(N, false);
+
+    ++visited_mark;
 
     size_t_max minimal_priority_limit = INVALID_NODE() - priority_drop_limit;
     hq.clear(); // Stores priority, current node_index, last_leaf index
@@ -105,13 +112,16 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         
         if (node_index == root_node_index) return false;
 
-        while (node.leaf_range_begin != node.leaf_range_end && // Todo make efficient
+        size_t_max leaf_range_end = nodes[node_index + 1].original_leaf_range_begin();
+        if (leaf_range_end < node.leaf_range_begin) leaf_range_end = N;
+
+        while (node.leaf_range_begin != leaf_range_end && // Todo make efficient
                 (nodes[node.leaf_range_begin].used() || // Was already used as next for other leaf / complement was used
                 (COMPLEMENTS && nodes[node.leaf_range_begin].complement_completed()) || // Complement was completed
                 components.are_connected(leaf_index, node.leaf_range_begin))){ // Is from the same chain as current leaf trying to be completed
             ++node.leaf_range_begin;
         }
-        if (node.leaf_range_begin != node.leaf_range_end){ // We found at least one suitable leaf to complete the current one
+        if (node.leaf_range_begin != leaf_range_end){ // We found at least one suitable leaf to complete the current one
             nodes[node.leaf_range_begin].set_used();
             leaf_node.set_next(node.leaf_range_begin);
             components.connect(leaf_index, node.leaf_range_begin);
@@ -122,21 +132,21 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             }
 
             if (last_leaf != leaf_index){
-                nodes[node.leaf_range_begin].previous = last_leaf;
+                previous[node.leaf_range_begin] = last_leaf;
                 set_backtrack_path_for_leaf(leaf_index, node.leaf_range_begin);
             }
 
             return true;
         }
 
-        for (size_t_max i = node.original_leaf_range_begin(); i < node.leaf_range_end; ++i){ // Search also through already used leaves
+        for (size_t_max i = node.original_leaf_range_begin(); i < leaf_range_end; ++i){ // Search also through already used leaves
             if (i == leaf_index) continue;
             if (nodes[i].resigned()) continue; // But not the ones pointing nowhere
             
-            if (visited[i]) continue;
-            visited[i] = true;
+            if (visited[i] == visited_mark) continue;
+            visited[i] = visited_mark;
             
-            nodes[i].previous = last_leaf;
+            previous[i] = last_leaf;
             push_failure_of_node_into_hq(priority, i, minimal_priority_limit, i); // Add failure of that leaf
         }
 
@@ -182,7 +192,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_backtrack_path_f
     size_t_max actual = next_leaf;
     while (actual != origin_leaf){
         backtracks.push_back(actual);
-        actual = nodes[actual].previous;
+        actual = previous[actual];
     }
     backtrack_indexes[origin_leaf] = backtracks.size() - 1;
 }
