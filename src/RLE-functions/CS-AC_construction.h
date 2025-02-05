@@ -117,6 +117,7 @@ class CuttedSortedAC {
     size_t_max K;               // kmer-length
     size_t_max N;               // number of kmers, number of leaves
     size_t_max DEPTH_CUTOFF;    // first not-to-be-reached depth
+    size_t_max PRACTICAL_DEPTH; // used to resize nodes
     size_t_max SEARCH_CUTOFF;   // fraction of uncompleted leaves to switch to fast mode
     bool COMPLEMENTS;           // whether or not complements are used
 
@@ -146,9 +147,18 @@ class CuttedSortedAC {
     size_t_max find_complement_kmer_index(size_t_max kmer_index);
 public:
     CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
-        kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+        kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(K - DEPTH_CUTOFF),
+        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
     CuttedSortedAC(std::vector<kmer_t>&& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
-        kMers(std::move(kmers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+        kMers(std::move(kmers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(K - DEPTH_CUTOFF),
+        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+
+    CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, size_t_max PRACTICAL_DEPTH = 0, bool complements = false) :
+        kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(PRACTICAL_DEPTH),
+        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+    CuttedSortedAC(std::vector<kmer_t>&& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, size_t_max PRACTICAL_DEPTH = 0, bool complements = false) :
+        kMers(std::move(kmers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(PRACTICAL_DEPTH),
+        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
 
     void construct_graph();
 
@@ -176,7 +186,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
 
     LOG_STREAM << "Preparing..." << std::endl;
 
-    nodes.reserve((K - DEPTH_CUTOFF) * N);
+    nodes.reserve(PRACTICAL_DEPTH * N);
 
     std::vector<Node> current_nodes; current_nodes.reserve(N);
     std::vector<std::pair<size_t_max, size_t_max>> failures(N); // kmer index, last index

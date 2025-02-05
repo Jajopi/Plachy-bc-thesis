@@ -69,7 +69,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     }
 
     size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
-    LOG_STREAM << "\b\b\b\b" << std::setw(4) << 0 << "\b\b\b\b" << '\b';
+    LOG_STREAM << std::endl << "Switched to fast mode: " << std::setw(10) << uncompleted_leaf_count;
+
     for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
             LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b" << std::setw(10) << uncompleted_leaf_count - i; LOG_STREAM.flush();
             size_t_max leaf_index = uncompleted_leaves[i];
@@ -77,8 +78,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
             if (COMPLEMENTS && nodes[leaf_index].complement_completed()) continue;
             try_complete_leaf(leaf_index, INVALID_NODE()); // Special value 0 of minimal_priority_limit
     }
-
     LOG_STREAM << std::endl;
+
     COMPUTED_RESULT = true;
 }
 

@@ -59,7 +59,7 @@ size_t compute_max_depth(size_t kmer_count){
     size_t available_depth = available_nodes / kmer_count;
     // std::cerr << "Available nodes: " << available_nodes << ' ' << sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>) << std::endl;
 
-    if (available_depth < 3){ // at least two top levels + current_nodes
+    if (available_depth < 2){ // at least top level + current_nodes
         throw std::invalid_argument("Not enough memory for computation.");
     }
     std::cerr << "Maximal available depth: " << available_depth << std::endl;
@@ -73,8 +73,17 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     
     size_t depth_cutoff = 0;
     if (max_depth < k) depth_cutoff = k - max_depth;
+    size_t practical_depth = max_depth;
 
-    auto csac = CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>(kMers, size_t_max(k), size_t_max(depth_cutoff), complements);
+    size_t_max exponent = 1;
+    while (size_t(1 << (2 * exponent)) < kMers.size()) ++exponent;
+    if (exponent > depth_cutoff){
+        depth_cutoff = 0;
+        ++practical_depth;
+    }
+
+    auto csac = CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>(
+        kMers, size_t_max(k), size_t_max(depth_cutoff), size_t_max(practical_depth), complements);
     csac.construct_graph();
     
     // csac.print_stats();
@@ -82,7 +91,8 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     // csac.print_sorted();
     
     csac.convert_to_searchable_representation();
-    csac.set_search_parameters(log(kMers.size()));
+    csac.set_search_parameters(log2(kMers.size()), 1, 30);
+    std::cerr << "Run penalty: " << log2(kMers.size()) << std::endl;
     // std::cerr << log(k) << std::endl;
 
     csac.compute_result();
