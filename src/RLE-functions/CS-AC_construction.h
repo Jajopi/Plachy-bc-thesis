@@ -57,18 +57,13 @@ struct CS_AC_Node {
         size_t_max leaf_range_begin; // changes // Searching
         size_t_max bitmask_and_next;            // Leaves while searching
     };
-    /*union {
-        size_t_max child_range_end;             // Construction
-        size_t_max leaf_range_end;              // Searching
-        size_t_max previous;                    // Leaves while searching, backtracking
-    };*/
 
     static inline size_t_max INVALID_LEAF() { return std::numeric_limits<size_t_max>::max() >> K_BIT_SIZE; };
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
     
-    CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child/*, size_t_max after_last_child*/) :
+    CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child) :
         depth_and_kmer_index((kmer_index << K_BIT_SIZE) + depth), failure(INVALID_NODE()),
-        child_range_begin(first_child)/*, child_range_end(after_last_child)*/ {};
+        child_range_begin(first_child) {};
     
     void print(std::ostream& os) const; // Construction
 
@@ -107,8 +102,6 @@ inline void CS_AC_Node<size_t_max, K_BIT_SIZE>::print(std::ostream &os) const {
     os << ",\tCH: [ ";
     if (child_range_begin == INVALID_NODE()) os << "INV"; else os << child_range_begin;
     os << " - ";
-    /*if (child_range_end == INVALID_NODE()) os << "INV"; else os << child_range_end;
-    os << " )";*/
 }
 
 
@@ -121,10 +114,11 @@ class CuttedSortedAC {
     std::vector<kmer_t> kMers;  // sorted
     std::vector<Node> nodes;    // sorted by depth from K to DEPTH_CUTOFF, lexicographically
     
-    size_t_max K;            // kmer-length
-    size_t_max N;            // number of kmers, number of leaves
-    size_t_max DEPTH_CUTOFF; // first not-to-be-reached depth
-    bool COMPLEMENTS;        // whether or not complements are used
+    size_t_max K;               // kmer-length
+    size_t_max N;               // number of kmers, number of leaves
+    size_t_max DEPTH_CUTOFF;    // first not-to-be-reached depth
+    size_t_max SEARCH_CUTOFF;   // fraction of uncompleted leaves to switch to fast mode
+    bool COMPLEMENTS;           // whether or not complements are used
 
     bool CONVERTED_TO_SEARCHABLE = false;
     bool COMPUTED_RESULT = false;
@@ -138,6 +132,7 @@ class CuttedSortedAC {
     std::vector<size_t_max> previous;
     std::vector<size_t_max> visited;
     size_t_max visited_mark = 0;
+    std::vector<size_t_max> remaining_priorities;
 
     void sort_and_remove_duplicate_kmers();
 
@@ -145,7 +140,6 @@ class CuttedSortedAC {
 
     bool try_complete_leaf(size_t_max leaf_index, size_t_max priority_drop_limit);
     void push_failure_of_node_into_hq(size_t_max riority, size_t_max node_index, size_t_max priority_drop_limit, size_t_max last_leaf);
-    // void squeeze_hq();
     void squeeze_uncompleted_leaves(std::vector<size_t_max>& unclompleted_leaves);
     void set_backtrack_path_for_leaf(size_t_max origin_leaf, size_t_max next_leaf);
     
@@ -159,7 +153,9 @@ public:
     void construct_graph();
 
     void convert_to_searchable_representation();
-    void set_search_parameters(size_t_max new_run_score, size_t_max base_extension_score = 1);
+    void set_search_parameters(size_t_max new_run_score,
+                               size_t_max base_extension_score = 1,
+                               size_t_max precision = 10);
     void compute_result();
     size_t_max print_result(std::ostream& os);
 
@@ -187,7 +183,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     
     // Add leaves
     for (size_t_max i = 0; i < N; ++i){
-        current_nodes.emplace_back(i, K, i/*, i + 1*/);
+        current_nodes.emplace_back(i, K, i);
         failures[i] = std::make_pair(i, i);
     }
 
@@ -219,7 +215,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
             size_t_max j = i;
             while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index()], K, depth)) ++j;
 
-            current_nodes.emplace_back(nodes[i].kmer_index(), depth, i/*, j*/);
+            current_nodes.emplace_back(nodes[i].kmer_index(), depth, i);
             
             if (new_node_on_failure_path){
                 nodes[failures[failure_index].second].failure = new_node_index;
@@ -240,11 +236,11 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
             i = j - 1;
         }
     }
-    LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(3) << DEPTH_CUTOFF << std::endl;
+    LOG_STREAM << "\b\b\b" << std::setw(3) << DEPTH_CUTOFF << std::endl;
 
     for (Node node: current_nodes) nodes.push_back(node);
 
-    nodes.emplace_back(0, 0, nodes.size() - current_nodes.size()/*, nodes.size()*/);
+    nodes.emplace_back(0, 0, nodes.size() - current_nodes.size());
     
     size_t_max root_node = nodes.size() - 1;
     for (size_t_max i = 0; i < root_node; ++i){
@@ -271,12 +267,10 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
     for (size_t_max i = N; i < node_count; ++i){ // Convert internal nodes - must be before leaves
         Node& node = nodes[i];
         node.leaf_range_begin = nodes[node.child_range_begin].child_range_begin;
-        // node.leaf_range_end = nodes[node.child_range_end - 1].child_range_end;
     }
     for (size_t_max i = 0; i < N; ++i){ // Convert leaves
         Node& node = nodes[i];
         node.reset_bitmask_and_next();
-        // node.previous = INVALID_LEAF();
         if (COMPLEMENTS) node.complement_index = find_complement_kmer_index(node.kmer_index());
         else node.complement_index = INVALID_LEAF(); // Let that crash if used somewhere
     }
@@ -286,9 +280,10 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameters(
-            size_t_max new_run_score, size_t_max base_extension_score) {
+            size_t_max new_run_score, size_t_max base_extension_score, size_t_max precision) {
     NEW_RUN_SCORE = new_run_score;
     BASE_EXTENSION_SCORE = base_extension_score;
+    SEARCH_CUTOFF = N / std::max(2, 1 << precision);
 }
 
 // Sorting

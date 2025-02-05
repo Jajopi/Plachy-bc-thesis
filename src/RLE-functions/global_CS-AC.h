@@ -43,7 +43,7 @@ size_t compute_max_depth(size_t kmer_count){
                                      + sizeof(size_t_max)               // backtracks
                                      + sizeof(size_t_max)               // backtrack_indexes
                                      + sizeof(size_t_max)               // previous
-                                     + sizeof(size_t_max);              // visited
+                                     + sizeof(size_t_max);              // remaining_priorities
     
     size_t memory_reserved_per_kmer = storing_memory_per_kmer + std::max(constructing_memory_per_kmer, searching_memory_per_kmer);
     size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kmer_count;
@@ -82,7 +82,7 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     // csac.print_sorted();
     
     csac.convert_to_searchable_representation();
-    csac.set_search_parameters(k);
+    csac.set_search_parameters(log(kMers.size()));
     // std::cerr << log(k) << std::endl;
 
     csac.compute_result();
