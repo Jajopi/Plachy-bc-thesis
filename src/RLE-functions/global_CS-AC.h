@@ -59,7 +59,7 @@ size_t compute_max_depth(size_t kmer_count){
     size_t available_depth = available_nodes / kmer_count;
     // std::cerr << "Available nodes: " << available_nodes << ' ' << sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>) << std::endl;
 
-    if (available_depth < 2){ // at least top level + current_nodes
+    if (available_depth < 2){ // at least top two levels
         throw std::invalid_argument("Not enough memory for computation.");
     }
     std::cerr << "Maximal available depth: " << available_depth << std::endl;
@@ -91,9 +91,8 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     // csac.print_sorted();
     
     csac.convert_to_searchable_representation();
-    csac.set_search_parameters(log2(kMers.size()), 1, 30);
-    std::cerr << "Run penalty: " << log2(kMers.size()) << std::endl;
-    // std::cerr << log(k) << std::endl;
+    csac.set_search_parameters(log2(kMers.size()), 1, 15);
+    std::cerr << "Run penalty: " << int(log2(kMers.size())) << std::endl;
 
     csac.compute_result();
     csac.print_result(os);
@@ -117,9 +116,9 @@ void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& 
 
         size_t limit = kMers.size() * (size_t(1) << K_BIT_SIZE);
 
-        if (limit < (size_t(1) << 15))       compute_with_cs_ac<kmer_t, uint16_t, K_BIT_SIZE>(kMers, os, k, complements);
-        else if (limit < (size_t(1) << 31))  compute_with_cs_ac<kmer_t, uint32_t, K_BIT_SIZE>(kMers, os, k, complements);
-        else                                 compute_with_cs_ac<kmer_t, uint64_t, K_BIT_SIZE>(kMers, os, k, complements);
+        if      (limit < (size_t(1) << 15)) compute_with_cs_ac<kmer_t, uint16_t, K_BIT_SIZE>(kMers, os, k, complements);
+        else if (limit < (size_t(1) << 31)) compute_with_cs_ac<kmer_t, uint32_t, K_BIT_SIZE>(kMers, os, k, complements);
+        else                                compute_with_cs_ac<kmer_t, uint64_t, K_BIT_SIZE>(kMers, os, k, complements);
     }
     catch (const std::exception& e){
         std::cerr << std::endl << "Exception was thrown: " << e.what() << std::endl;

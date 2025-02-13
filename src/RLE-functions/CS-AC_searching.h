@@ -68,16 +68,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
         squeeze_uncompleted_leaves(uncompleted_leaves);
     }
 
-    size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
-    LOG_STREAM << std::endl << "Switched to fast mode: " << std::setw(10) << uncompleted_leaf_count;
-
-    for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
-            LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b" << std::setw(10) << uncompleted_leaf_count - i; LOG_STREAM.flush();
-            size_t_max leaf_index = uncompleted_leaves[i];
-
-            if (COMPLEMENTS && nodes[leaf_index].complement_completed()) continue;
-            try_complete_leaf(leaf_index, INVALID_NODE()); // Special value 0 of minimal_priority_limit
-    }
     LOG_STREAM << std::endl;
 
     COMPUTED_RESULT = true;
@@ -121,7 +111,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
     push_failure_of_node_into_hq(INVALID_NODE(), leaf_index, minimal_priority_limit, leaf_index); // priority, node, limit, last_leaf
 
     while (!hq.empty()){
-        auto t = hq.front(); std::pop_heap(hq.begin(), hq.end()); hq.pop_back();
+        auto t = hq.back(); hq.pop_back();
         size_t_max priority = std::get<0>(t);
         size_t_max node_index = std::get<1>(t);
         size_t_max last_leaf = std::get<2>(t);
@@ -154,6 +144,9 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             }
 
             return true;
+        }
+        else {
+            node.leaf_range_begin = node.original_leaf_range_begin();
         }
 
         for (size_t_max i = node.original_leaf_range_begin(); i < leaf_range_end; ++i){ // Search also through already used leaves
@@ -191,7 +184,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node
 
     if (failure_priority < minimal_priority_limit) return;
 
-    hq.push_back(std::make_tuple(failure_priority, node.failure, last_leaf)); std::push_heap(hq.begin(), hq.end());
+    hq.push_back(std::make_tuple(failure_priority, node.failure, last_leaf));
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>

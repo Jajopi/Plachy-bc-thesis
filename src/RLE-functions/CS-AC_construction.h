@@ -53,8 +53,7 @@ struct CS_AC_Node {
     };
     size_t_max failure;                         // Construction + searching + leaves while searching
     union {
-        size_t_max child_range_begin;           // Construction
-        size_t_max leaf_range_begin; // changes // Searching
+        size_t_max leaf_range_begin; // changes // Construction, searching
         size_t_max bitmask_and_next;            // Leaves while searching
     };
 
@@ -63,7 +62,7 @@ struct CS_AC_Node {
     
     CS_AC_Node(size_t_max kmer_index, size_t_max depth, size_t_max first_child) :
         depth_and_kmer_index((kmer_index << K_BIT_SIZE) + depth), failure(INVALID_NODE()),
-        child_range_begin(first_child) {};
+        leaf_range_begin(first_child) {};
     
     void print(std::ostream& os) const; // Construction
 
@@ -100,7 +99,7 @@ inline void CS_AC_Node<size_t_max, K_BIT_SIZE>::print(std::ostream &os) const {
     os << ",\tF: ";
     if (failure == INVALID_NODE()) os << "INV"; else os << failure;
     os << ",\tCH: [ ";
-    if (child_range_begin == INVALID_NODE()) os << "INV"; else os << child_range_begin;
+    if (leaf_range_begin == INVALID_NODE()) os << "INV"; else os << leaf_range_begin;
     os << " - ";
 }
 
@@ -131,8 +130,6 @@ class CuttedSortedAC {
     std::vector<size_t_max> backtracks;
     std::vector<size_t_max> backtrack_indexes;
     std::vector<size_t_max> previous;
-    std::vector<size_t_max> visited;
-    size_t_max visited_mark = 0;
     std::vector<size_t_max> remaining_priorities;
 
     void sort_and_remove_duplicate_kmers();
@@ -188,25 +185,23 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
 
     nodes.reserve(PRACTICAL_DEPTH * N);
 
-    std::vector<Node> current_nodes; current_nodes.reserve(N);
     std::vector<std::pair<size_t_max, size_t_max>> failures(N); // kmer index, last index
     
     // Add leaves
     for (size_t_max i = 0; i < N; ++i){
-        current_nodes.emplace_back(i, K, i);
+        nodes.emplace_back(i, K, i);
         failures[i] = std::make_pair(i, i);
     }
 
     LOG_STREAM << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; LOG_STREAM.flush();
 
     // Add other nodes
+    size_t_max node_count = 0;
     for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
         LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(3) << depth; LOG_STREAM.flush();
         
-        size_t_max last_node_count = nodes.size();
-        for (Node node: current_nodes) nodes.push_back(node);
-        current_nodes.clear();
-        size_t_max node_count = nodes.size();
+        size_t_max last_node_count = node_count;
+        node_count = nodes.size();
         size_t_max new_node_index = node_count;
 
         resort_and_shorten_failures(failures, depth);
@@ -225,7 +220,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
             size_t_max j = i;
             while (j < node_count && current_prefix == BitPrefix(kMers[nodes[j].kmer_index()], K, depth)) ++j;
 
-            current_nodes.emplace_back(nodes[i].kmer_index(), depth, i);
+            nodes.emplace_back(nodes[i].kmer_index(), depth, nodes[i].kmer_index());
             
             if (new_node_on_failure_path){
                 nodes[failures[failure_index].second].failure = new_node_index;
@@ -248,13 +243,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     }
     LOG_STREAM << "\b\b\b" << std::setw(3) << DEPTH_CUTOFF << std::endl;
 
-    for (Node node: current_nodes) nodes.push_back(node);
-
-    nodes.emplace_back(0, 0, nodes.size() - current_nodes.size());
+    nodes.emplace_back(0, 0, 0);
     
     size_t_max root_node = nodes.size() - 1;
-    for (size_t_max i = 0; i < root_node; ++i){
+    for (size_t_max i = 0; i < N; ++i){
         if (nodes[i].failure == INVALID_NODE()) nodes[i].failure = root_node; // Set all not-yet-set failures
+        // We don't care about failures of internal nodes which will never be visited by failure path
     }
 
     LOG_STREAM << "Graph construction finished." << std::endl;
@@ -273,11 +267,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
 
     LOG_STREAM << "Converting graph to searchable..." << std::endl;
 
-    size_t_max node_count = nodes.size();
-    for (size_t_max i = N; i < node_count; ++i){ // Convert internal nodes - must be before leaves
-        Node& node = nodes[i];
-        node.leaf_range_begin = nodes[node.child_range_begin].child_range_begin;
-    }
     for (size_t_max i = 0; i < N; ++i){ // Convert leaves
         Node& node = nodes[i];
         node.reset_bitmask_and_next();
@@ -447,7 +436,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_topological(st
 
     if (root < N) return;
     
-    /*for (size_t_max i = node.child_range_begin; i < node.child_range_end; ++i){
+    /*for (size_t_max i = node.leaf_range_begin; i < node.child_range_end; ++i){
         if (i == INVALID_NODE()) break;
         print_topological(os, i, depth + 1);
     }*/
