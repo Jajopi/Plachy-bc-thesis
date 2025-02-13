@@ -122,7 +122,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         size_t_max leaf_range_end = nodes[node_index + 1].original_leaf_range_begin();
         if (leaf_range_end < node.leaf_range_begin) leaf_range_end = N;
 
-        while (node.leaf_range_begin != leaf_range_end && // Todo make efficient
+        while (node.leaf_range_begin != leaf_range_end &&
                 (nodes[node.leaf_range_begin].used() || // Was already used as next for other leaf / complement was used
                 (COMPLEMENTS && nodes[node.leaf_range_begin].complement_completed()) || // Complement was completed
                 components.are_connected(leaf_index, node.leaf_range_begin))){ // Is from the same chain as current leaf trying to be completed
@@ -146,7 +146,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             return true;
         }
         else {
-            node.leaf_range_begin = node.original_leaf_range_begin();
+            node.leaf_range_begin = node.original_leaf_range_begin(); // Reset the counter -- improves precision AND speed 
         }
 
         for (size_t_max i = node.original_leaf_range_begin(); i < leaf_range_end; ++i){ // Search also through already used leaves

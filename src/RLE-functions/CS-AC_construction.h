@@ -181,7 +181,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
         throw std::invalid_argument("Graph has already been constructed.");
     }
 
-    LOG_STREAM << "Preparing..." << std::endl;
+    LOG_STREAM << "Constructing the graph..." << std::endl;
 
     nodes.reserve(PRACTICAL_DEPTH * N);
 
@@ -289,7 +289,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameter
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::sort_and_remove_duplicate_kmers() {
-    LOG_STREAM << "Sorting using std::sort..." << std::endl;
+    LOG_STREAM << "Sorting kmers..." << std::endl;
     std::sort(kMers.begin(), kMers.end());
     
     if (COMPLEMENTS){
