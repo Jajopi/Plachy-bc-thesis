@@ -1,4 +1,4 @@
-.PHONY: all clean test cpptest converttest verify quick-verify
+.PHONY: all clean test cpptest converttest verify quick-verify reall
 
 CXX=         g++
 CXXFLAGS=    -g -Wall -Wno-unused-function -std=c++17 -O2 -I/opt/homebrew/include
@@ -10,6 +10,9 @@ TESTS=       tests
 GTEST=       $(TESTS)/googletest/googletest
 DATA=        data
 
+reall:
+	make clean
+	make all
 
 all: kmercamel
 
