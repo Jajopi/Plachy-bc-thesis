@@ -70,7 +70,7 @@ template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements){
 
     size_t max_depth = compute_max_depth<kmer_t, size_t_max, K_BIT_SIZE>(kMers.size());
-    
+
     size_t depth_cutoff = 0;
     if (max_depth < k) depth_cutoff = k - max_depth;
     size_t practical_depth = max_depth;
@@ -85,11 +85,11 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, 
     auto csac = CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>(
         kMers, size_t_max(k), size_t_max(depth_cutoff), size_t_max(practical_depth), complements);
     csac.construct_graph();
-    
+
     // csac.print_stats();
     // csac.print_topological();
     // csac.print_sorted();
-    
+
     csac.convert_to_searchable_representation();
     csac.set_search_parameters(log2(kMers.size()), 1, 15);
     std::cerr << "Run penalty: " << int(log2(kMers.size())) << std::endl;
@@ -140,4 +140,3 @@ void GlobalCS_AC(std::vector<kmer128_t>& kMers, std::ostream& os, size_t k, bool
 void GlobalCS_AC(std::vector<kmer256_t>& kMers, std::ostream& os, size_t k, bool complements) {
     set_limit_and_compute_with_cs_ac<kmer256_t, 7>(kMers, os, k, complements);
 }
-

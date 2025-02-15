@@ -72,20 +72,17 @@ struct CS_AC_Node {
     inline size_t_max original_leaf_range_begin() const { return kmer_index(); }; // Searching, does not change through search
 
     // ... -> node = was used, node -> ... = was completed
-    // Leaves while searching - bitmask: 1 - was used / complement was used
-    // 2 - was resigned
-    // 4 - complement was completed
+    // Leaves while searching - bitmask:
+    // 1 - was used
+    // 2 - complement was chosen (used / completed)
     inline bool used() const { return (bitmask_and_next & size_t_max(1)) != 0; };
     inline void set_used() { bitmask_and_next |= size_t_max(1); };
-    inline bool resigned() const { return (bitmask_and_next & size_t_max(2)) != 0; };
-    inline void set_resigned() { bitmask_and_next |= size_t_max(2); };
-    inline void unset_resigned() { bitmask_and_next ^= size_t_max(2); };
-    inline bool complement_completed() const { return (bitmask_and_next & size_t_max(4)) != 0; };
-    inline void set_complement_completed() { bitmask_and_next |= size_t_max(4); };
+    inline bool complement_chosen() const { return (bitmask_and_next & size_t_max(2)) != 0; };
+    inline void set_complement_chosen() { bitmask_and_next |= size_t_max(2); };
 
     inline size_t_max next() const { return bitmask_and_next >> K_BIT_SIZE; };
     inline void set_next(size_t_max next) {
-        bitmask_and_next &= size_t_max(7);
+        bitmask_and_next &= size_t_max(3);
         bitmask_and_next |= (next << K_BIT_SIZE);
     };
     inline bool completed() const { return next() != INVALID_LEAF(); };
@@ -246,7 +243,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     nodes.emplace_back(0, 0, 0);
     
     size_t_max root_node = nodes.size() - 1;
-    for (size_t_max i = 0; i < N; ++i){
+    for (size_t_max i = 0; i < root_node; ++i){
         if (nodes[i].failure == INVALID_NODE()) nodes[i].failure = root_node; // Set all not-yet-set failures
         // We don't care about failures of internal nodes which will never be visited by failure path
     }
@@ -368,6 +365,8 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::find_complemen
         else if (kMers[middle] < complement) begin = middle + 1;
         else end = middle - 1;
     }
+    // print_kmer(kMers[kmer_index], K, LOG_STREAM); LOG_STREAM << ' ';
+    // print_kmer(kMers[begin], K, LOG_STREAM); LOG_STREAM << std::endl;
     return begin; // Complement should always be present
 }
 
@@ -406,7 +405,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_sorted(std::os
         os << i++ << ":\t";
         node.print(os);
         os << ":\t";
-        for (size_t_max c = 0; c < node.depth(); ++c) os << NucleotideAtIndex(kMers[node.kmer_index], K, c);
+        for (size_t_max c = 0; c < node.depth(); ++c) os << NucleotideAtIndex(kMers[node.kmer_index()], K, c);
         os << std::endl;
     }
 }
