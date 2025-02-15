@@ -7,4 +7,4 @@ outputs
 data/big
 count_kmers.py
 count_noncomplement_kmers.py
-test_correctness_outputs
+parameters_testing_outputs
