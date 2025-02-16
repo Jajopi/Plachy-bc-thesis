@@ -85,33 +85,84 @@ using binary search and store it in the corresponding leaf node.
 ## Searching for the masked superstring
 
 We use modification of global greedy strategy with three parameters:
-- penalty for superstring extension
-- penalty for creating a new run of ones in the mask (for inserting a block of zeros)
-- precision -- an inverse binary logarithm of the fraction of leaves
-    remaining at which the algorithm should stop searching for next leaves for those leaves.
+- penalty for superstring extension by base -- extension penalty
+- penalty for creating a new run of ones in the mask (for inserting a block of zeros) --
+run penalty
+- precision -- an inverse binary logarithm of the fraction of *unexteded* leaves
+    remaining at which the algorithm should stop
 
 Again, we divide the algorithm into phases, where each phase has it's own maximal penalty,
 which increases by extension penalty per phase.
-We then try to find the next unused leaf for each leaf that already doesn't have one.
-We use DFS search (because of it's simplicity) limited to steps
-that don't exceed the maximal penalty and stop if there are no remaining steps to take
-or we find at least one suitable leaf which hasn't been already used as an extension.
+We then try to connect each *unextended* leaf to an *unused* leaf, in such a way
+that the leaf being *extended* has the best possible overlap with the leaf being *used*
+(the fist one being a prefix, the second one being a suffix).
+
+We use DFS search limited to steps that don't exceed the maximal penalty
+and stop if there are no remaining steps to take or we find at least one *unused* leaf.
+In the end we either *extend* the original leaf or leave it to be *extended* in the next phases.
+We stop the whole algorithm when we run out of phases or there are less
+*unextended* leaves than were defined by precision parameter.
+Running out of phases happens when the penalty threshold allows us
+to *extend* any leaf by visiting the root and choosing any of remaining leaves --
+with zero overlap, which means the same penalty can also be achieved
+by simply joining any of resulting chains together.
+This happens when the penalty threshold reaches a value of
+$k \times extension~penalty + run~penalty$.
 
 From each node visited in the search (which can also be a leaf),
 we try to proceed by it's failure link
-and use any of the leaves in the interval of the corresponding failure node.
+and use any of the leaves in the leaf interval of the corresponding failure node.
 The penalty of such step depends on the depth difference of the failure node
 from the current one (with possible application of new run penalty).
 If there is no leaf that can be used, we try to continue the search from all the leaves
 of the failure node and the failure node itself.
 
-For each internal node, we keep the index of first unused leaf of that node
+We always find the best possible extension within a given maximal penalty,
+as we increase the penalty threshold exactly by penalty extension in each step, and
+we always try to search from the current node (by it's failure link) first --
+if the optimal extension would need to start a new run
+(with a possibility to have penalty which is not a multiple of extension penalty),
+that would be tried as the first one.
+
+To speed the search up,
+for each internal node, we keep the index of first unused leaf of that node
 and increase it if we try to connect the leaf but are not able to.
-This can also happen if connecting the leaf would create a cycle,
-so the leaves skipped this way can be interpreted in the wrong way
-(TODO resolve if it's OK and faster to ignore
-or actually not slowing down even if we reset the counter every time...
--- seems to be actually faster AND more precise to reset).
+This can also happen when connecting the next leaf would create a cycle,
+so the leaves skipped this way might be marked as used even if they were not.
+Due to this, we reset each counter after it reaches the end of it's range.
 
-...
+To keep track of possible cycles, we use union-find structure with
+path update. It also keeps track of beginnings of chains of connected leaves
+(thanks to the asymmetrical way of connecting),
+which is used when printing the resulting superstring.
 
+To further increase the speed (at cost of increasing overall penalty),
+we introduce a maximal remaining penalty counter for each leaf.
+It kepps track of the maximal remaining penalty with which a leaf was visited while searching.
+The leaf then cannot be visited with the same or lower remaining penalty and is skipped instead.
+*TODO remove: Preventing the leaf from being visited with lower reamining penalty that it keeps
+comes from an observation:
+since we have visited the leaf with higher remaining penalty,
+it must have been impossible to visit it with a lower remaining penalty ()...
+well, technically, i guess this doesn't hold because we use it even if we don't extend
+the origin leaf through this one, and still, if it made sense,
+there's no point in having equality there, but well, that way it somehow works.*
+
+To keep track of an optimal way of extending a leaf
+(which can use a number of other leaves present), we use an array of backtrack indexes
+and other array called backtracks.
+If the way of extension contains at least one other leaf,
+we append all those leaves in an reverse order into the backtracks array,
+starting with the leaf to be reached (the *used* one).
+We then mark the start of this chain (it's last index) in the backtrack indexes
+for the leaf being *extended*. To be able to use this approach, we
+also need to keep track of previous visited leaf for each leaf we visit in the algorithm
+(those marks never need to be cleared as they are only used when valid).
+
+In the end, when a sufficient amount of leaves has been *extended*,
+we search through them and when we find the beginning of a chain of extending leaves
+(marked by a leaf that points to itself in union-find),
+we print all the leaves in the chain.
+For each leaf that has a backtrack index defined,
+we print the whole path to the next leaf as stored in backtracks
+(we stop when we reach the next leaf in backtracks).
