@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <getopt.h>
 
 #include "unistd.h"
 #include "version.h"
@@ -59,7 +60,7 @@ void Version() {
 /// Run KmerCamel with the given parameters.
 template <typename kmer_t, typename kh_wrapper_t>
 int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, int d_max, std::ostream *of, bool complements, bool masks,
-                    std::string algorithm, bool optimize_memory, bool lower_bound) {
+                    std::string algorithm, bool optimize_memory, bool lower_bound, size_t run_penalty, size_t precision) {
     if (masks) {
         int ret = Optimize(wrapper, kmer_type, algorithm, path, *of, k, complements);
         if (ret) Help();
@@ -110,8 +111,9 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
+        wrapper.kh_destroy_set(kMers);
 
-        GlobalCS_AC(kMerVec, *of, k, complements);
+        GlobalCS_AC(kMerVec, *of, k, complements, run_penalty, precision);
     } else {
         /*auto data = ReadFasta(path);
         if (data.empty()) {
@@ -156,8 +158,16 @@ int main(int argc, char **argv) {
     bool d_set = false;
     bool lower_bound = false;
     int opt;
+    size_t run_penalty = 0, precision = 0;
+
+    static struct option long_options[] = {
+        {"run-penalty",    required_argument, 0,  'x' },
+        {"precision",      required_argument, 0,  'y' },
+        {0,                     0,                 0,  0   }
+    };
+    int long_index = 0;
     try {
-        while ((opt = getopt(argc, argv, "p:k:d:a:o:hcvml"))  != -1) {
+        while ((opt = getopt_long(argc, argv, "p:k:d:a:o:x:y:hcvml", long_options, &long_index))  != -1) {
             switch(opt) {
                 case  'p':
                     if (!path.empty()) {
@@ -184,6 +194,12 @@ int main(int argc, char **argv) {
                     if (algorithm == "greedyAC") algorithm = "globalAC";
                     if (algorithm == "pseudosimplitigs") algorithm = "local";
                     if (algorithm == "pseudosimplitigsAC") algorithm = "localAC";
+                    break;
+                case 'x':
+                    run_penalty = std::stoi(optarg);
+                    break;
+                case 'y':
+                    precision = std::stoi(optarg);
                     break;
                 case  'c':
                     complements = true;
@@ -234,16 +250,25 @@ int main(int argc, char **argv) {
     } else if (lower_bound && algorithm != "global") {
         std::cerr << "Lower bound computation supported only for hash table global." << std::endl;
         return Help();
+    } else if (algorithm != "csac" && (run_penalty != 0 || precision != 0)){
+        std::cerr << "Run penalty and Precision are only valid when using csac algorithm.";
+        return Help();
+    } else if (run_penalty < 1 && run_penalty != 0){
+        std::cerr << "Run penalty has to be at least one.";
+        return Help();
+    } else if (precision < 1 && precision != 0){
+        std::cerr << "Precision has to be at least one.";
+        return Help();
     }
 #ifndef DEBUG_FAST_COMPILATION
     /*if (k < 16){
         return kmercamel(kmer_dict32_t(), kmer32_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
     } else */if (k < 32) {
-        return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+        return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     } else if (k < 64) {
-        return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+        return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     } else {
-        return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
+        return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     }
 #else
     return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);

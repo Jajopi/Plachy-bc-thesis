@@ -16,14 +16,14 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     if (!CONVERTED_TO_SEARCHABLE){
         throw std::invalid_argument("Graph has not been converted to searchable yet.");
     }
-    if (NEW_RUN_SCORE == INVALID_NODE()){
-        throw std::invalid_argument("Mandatory parameter NEW_RUN_SCORE was not set.");
+    if (RUN_PENALTY == INVALID_NODE()){
+        throw std::invalid_argument("Mandatory parameter RUN_PENALTY was not set.");
     }
-    if (BASE_EXTENSION_SCORE == INVALID_NODE()){
-        throw std::invalid_argument("Mandatory parameter BASE_EXTENSION_SCORE was not set.");
+    if (EXTENSION_PENALTY == INVALID_NODE()){
+        throw std::invalid_argument("Mandatory parameter EXTENSION_PENALTY was not set.");
     }
 
-    LOG_STREAM << "Computing indexes..." << std::endl;
+    // LOG_STREAM << "Computing indexes..." << std::endl;
 
     components = UnionFind(N);
     backtracks.reserve(N); // Chains for leaves where backtracking is needed
@@ -34,37 +34,30 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
 
-    size_t_max max_priority_drop = (K - DEPTH_CUTOFF) * BASE_EXTENSION_SCORE + NEW_RUN_SCORE;
+    size_t_max max_priority_drop = K * EXTENSION_PENALTY + RUN_PENALTY;
 
-    size_t_max remaining_iterations = max_priority_drop / BASE_EXTENSION_SCORE;
+    size_t_max remaining_iterations = max_priority_drop / EXTENSION_PENALTY;
     LOG_STREAM << "Leaves: " << N << ", iterations: " << remaining_iterations << std::endl;
-    LOG_STREAM << std::setw(10) << N << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
+    LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
 
-    for (size_t_max priority_drop_limit = BASE_EXTENSION_SCORE;
+    for (size_t_max priority_drop_limit = EXTENSION_PENALTY;
                     priority_drop_limit <= max_priority_drop;
-                    priority_drop_limit += BASE_EXTENSION_SCORE){
+                    priority_drop_limit += EXTENSION_PENALTY){
         size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
-        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(10) << uncompleted_leaf_count
+        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(12) << uncompleted_leaf_count
             << ' ' << std::setw(4) << remaining_iterations--; LOG_STREAM.flush();
         
         if (uncompleted_leaf_count < SEARCH_CUTOFF) break;
-        if (COMPLEMENTS && uncompleted_leaf_count < SEARCH_CUTOFF * 2) break;
         
         for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
             size_t_max leaf_index = uncompleted_leaves[i];
 
             // LOG_STREAM << leaf_index << ' ';
-            if (COMPLEMENTS && nodes[leaf_index].complement_chosen()){
-                uncompleted_leaves[i] = INVALID_LEAF();
-                continue;
-            }
+            if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
             // LOG_STREAM << "... ";
 
             bool result = try_complete_leaf(leaf_index, priority_drop_limit);
-            
-            if (result){
-                uncompleted_leaves[i] = INVALID_LEAF();
-            }
+            if (result) uncompleted_leaves[i] = INVALID_LEAF();
         }
 
         squeeze_uncompleted_leaves(uncompleted_leaves);
@@ -81,7 +74,7 @@ template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         size_t_max leaf_index, size_t_max priority_drop_limit) {
     
-    if (priority_drop_limit == BASE_EXTENSION_SCORE){
+    if (priority_drop_limit == EXTENSION_PENALTY){
         Node& leaf_node = nodes[leaf_index];
         Node& failure_node = nodes[leaf_node.failure];
         if (failure_node.depth() < K - 1) return false;
@@ -111,11 +104,11 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
     Node& leaf_node = nodes[leaf_index];
 
     size_t_max minimal_priority_limit = INVALID_NODE() - priority_drop_limit;
-    hq.clear(); // Stores priority, current node_index, last_leaf index
-    push_failure_of_node_into_hq(INVALID_NODE(), leaf_index, minimal_priority_limit, leaf_index); // priority, node, limit, last_leaf
+    stack.clear(); // Stores priority, current node_index, last_leaf index
+    push_failure_of_node_into_stack(INVALID_NODE(), leaf_index, minimal_priority_limit, leaf_index); // priority, node, limit, last_leaf
 
-    while (!hq.empty()){
-        auto t = hq.back(); hq.pop_back();
+    while (!stack.empty()){
+        auto t = stack.back(); stack.pop_back();
         size_t_max priority = std::get<0>(t);
         size_t_max node_index = std::get<1>(t);
         size_t_max last_leaf = std::get<2>(t);
@@ -156,7 +149,6 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 
         for (size_t_max i = node.original_leaf_range_begin(); i < leaf_range_end; ++i){ // Search also through already used leaves
             if (i == leaf_index) continue;
-            if (COMPLEMENTS && i == leaf_node.complement_index) continue;
 
             if (remaining_priorities[i] >= priority - minimal_priority_limit){
                 continue; // There is nothing to be found with remaining steps
@@ -164,10 +156,10 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             remaining_priorities[i] = priority - minimal_priority_limit;
             
             previous[i] = last_leaf;
-            push_failure_of_node_into_hq(priority, i, minimal_priority_limit, i); // Add failure of that leaf
+            push_failure_of_node_into_stack(priority, i, minimal_priority_limit, i); // Add failure of that leaf
         }
 
-        push_failure_of_node_into_hq(priority, node_index, minimal_priority_limit, last_leaf); // Add failure of current node
+        push_failure_of_node_into_stack(priority, node_index, minimal_priority_limit, last_leaf); // Add failure of current node
     }
 
     // LOG_STREAM << "x" << std::endl;
@@ -175,22 +167,22 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node_into_hq(
+inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node_into_stack(
         size_t_max priority, size_t_max node_index, size_t_max minimal_priority_limit, size_t_max last_leaf) {
     Node& node = nodes[node_index];
     Node& failure_node = nodes[node.failure];
 
     size_t_max node_depth = (node_index < N) ? K : node.depth(); // Leaves have always depth of K and complement_index is stored in depth field
     
-    size_t_max failure_priority = priority - (node_depth - failure_node.depth()) * BASE_EXTENSION_SCORE;
+    size_t_max failure_priority = priority - (node_depth - failure_node.depth()) * EXTENSION_PENALTY;
     if (node_depth == K - 1 || (node_depth == K && failure_node.depth() < K - 1)){ // Run will be interrupted
-        failure_priority -= NEW_RUN_SCORE;
+        failure_priority -= RUN_PENALTY;
         if (minimal_priority_limit == 0) return; // Special value indicating no interruptions are expected
     }
 
     if (failure_priority < minimal_priority_limit) return;
 
-    hq.push_back(std::make_tuple(failure_priority, node.failure, last_leaf));
+    stack.push_back(std::make_tuple(failure_priority, node.failure, last_leaf));
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
@@ -198,7 +190,9 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::squeeze_uncompleted_
     size_t_max count = uncompleted_leaves.size(), shift = 0;
     
     for (size_t_max i = 0; i < count; ++i){
-        if (uncompleted_leaves[i] == INVALID_LEAF()) ++shift;
+        if (uncompleted_leaves[i] == INVALID_LEAF() || (
+                COMPLEMENTS && nodes[uncompleted_leaves[i]].complement_chosen()))
+            ++shift;
         else uncompleted_leaves[i - shift] = uncompleted_leaves[i];
     }
 
@@ -221,7 +215,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
         throw std::invalid_argument("Result has not been computed yet.");
     }
 
-    LOG_STREAM << "Printing..." << std::endl;
+    // LOG_STREAM << "Printing..." << std::endl;
     size_t_max total_length = 0;
     size_t_max run_count = 1;
     size_t_max count = 0, other_count = 0;
@@ -253,7 +247,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
             }
 
             kmer_t actual_kmer = kMers[actual];
-            size_t_max ov = compute_max_overlap(last_kmer, actual_kmer, K);
+            size_t_max ov = max_overlap_length(last_kmer, actual_kmer, K);
             print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
 
             last_kmer = actual_kmer;
@@ -265,9 +259,9 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
                 size_t_max actual_backtrack = backtracks[backtrack_index];
                 size_t_max next = nodes[actual].next();
                 while (actual_backtrack != next){
-                    other_count++;
+                    // other_count++;
                     kmer_t actual_kmer = kMers[actual_backtrack];
-                    size_t_max ov = compute_max_overlap(last_kmer, actual_kmer, K);
+                    size_t_max ov = max_overlap_length(last_kmer, actual_kmer, K);
                     print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
 
                     last_kmer = actual_kmer;
@@ -282,13 +276,13 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
             actual = nodes[actual].next();
         }        
     }
-    print_kmer_masked(last_kmer, K, os);
+    print_kmer_masked(last_kmer, K, os, K);
     total_length += K;
 
-    LOG_STREAM << std::endl;
-    LOG_STREAM << "Total length: " << total_length << std::endl;
-    LOG_STREAM << "Run count: " << run_count << std::endl;
-    if (COMPLEMENTS) LOG_STREAM << count << ' ' << other_count << std::endl;
+    // LOG_STREAM << std::endl;
+    // LOG_STREAM << "Total length: " << total_length << std::endl;
+    // LOG_STREAM << "Run count: " << run_count << std::endl;
+    // /*if (COMPLEMENTS)*/ LOG_STREAM << count << ' ' << other_count << std::endl;
 
-    return total_length * BASE_EXTENSION_SCORE + run_count * NEW_RUN_SCORE;
+    return total_length * EXTENSION_PENALTY + run_count * RUN_PENALTY;
 }

@@ -72,7 +72,7 @@ public:
         if (VERBOSE > 0) std::cout << "Done: " << nodes.size() << " nodes" << std::endl;
     }
 
-    std::vector<size_t_max> compute_ordering(size_t_max new_run_score, size_t_max base_score = 1);
+    std::vector<size_t_max> compute_ordering(size_t_max run_penalty, size_t_max base_score = 1);
 
     void print_stats(std::ostream& os = std::cout);
     void print(std::ostream& os = std::cout);
@@ -334,7 +334,7 @@ inline void HOGConstructer<kmer_t, size_t_max>::convert_EHOG_to_HOG() {
 }
 
 template <typename kmer_t, typename size_t_max>
-inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_ordering(size_t_max new_run_score, size_t_max base_score) {
+inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_ordering(size_t_max run_penalty, size_t_max base_score) {
     size_t_max node_count = nodes.size();
     
     std::vector<size_t_max> indexes;
@@ -364,7 +364,7 @@ inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_order
             size_t_max failure_depth = nodes[failure_index].depth;
             //bool failure_disrupts_run = nodes[next].depth == k - 1;
             heap.push_back(std::make_pair(score + base_score * (current_depth - failure_depth) +
-                                          current_depth == k - 1 ? new_run_score : 0),
+                                          current_depth == k - 1 ? run_penalty : 0),
                                           failure_index); std::push_heap(heap);
 
             for (size_t_max child_index : nodes[current].children){
@@ -379,7 +379,7 @@ inline std::vector<size_t_max> HOGConstructer<kmer_t, size_t_max>::compute_order
                     failure_index = nodes[child_index].failure;
                     failure_depth = nodes[failure_index].depth;
                     heap.push_back(std::make_pair(score + base_score * (k - failure_depth) +
-                                                  failure_depth < k - 1 ? new_run_score : 0),
+                                                  failure_depth < k - 1 ? run_penalty : 0),
                                                   failure_index); std::push_heap(heap);
                 }
                 else {

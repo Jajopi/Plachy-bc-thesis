@@ -119,10 +119,10 @@ class CuttedSortedAC {
 
     bool CONVERTED_TO_SEARCHABLE = false;
     bool COMPUTED_RESULT = false;
-    size_t_max NEW_RUN_SCORE = INVALID_NODE();
-    size_t_max BASE_EXTENSION_SCORE = INVALID_NODE();
+    size_t_max RUN_PENALTY = INVALID_NODE();
+    size_t_max EXTENSION_PENALTY = INVALID_NODE();
 
-    std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> hq;
+    std::vector<std::tuple<size_t_max, size_t_max, size_t_max>> stack;
     UnionFind<size_t_max> components;
     std::vector<size_t_max> backtracks;
     std::vector<size_t_max> backtrack_indexes;
@@ -134,7 +134,7 @@ class CuttedSortedAC {
     void resort_and_shorten_failures(std::vector<std::pair<size_t_max, size_t_max>> &failures, size_t_max depth);
 
     bool try_complete_leaf(size_t_max leaf_index, size_t_max priority_drop_limit);
-    void push_failure_of_node_into_hq(size_t_max riority, size_t_max node_index, size_t_max priority_drop_limit, size_t_max last_leaf);
+    void push_failure_of_node_into_stack(size_t_max riority, size_t_max node_index, size_t_max priority_drop_limit, size_t_max last_leaf);
     void squeeze_uncompleted_leaves(std::vector<size_t_max>& unclompleted_leaves);
     void set_backtrack_path_for_leaf(size_t_max origin_leaf, size_t_max next_leaf);
     
@@ -157,8 +157,8 @@ public:
     void construct_graph();
 
     void convert_to_searchable_representation();
-    void set_search_parameters(size_t_max new_run_score,
-                               size_t_max base_extension_score = 1,
+    void set_search_parameters(size_t_max run_penalty,
+                               size_t_max extension_penalty = 1,
                                size_t_max precision = 10);
     void compute_result();
     size_t_max print_result(std::ostream& os);
@@ -178,7 +178,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
         throw std::invalid_argument("Graph has already been constructed.");
     }
 
-    LOG_STREAM << "Constructing the graph..." << std::endl;
+    // LOG_STREAM << "Constructing the graph..." << std::endl;
 
     nodes.reserve(PRACTICAL_DEPTH * N);
 
@@ -189,11 +189,13 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
         nodes.emplace_back(i, K, i);
         failures[i] = std::make_pair(i, i);
     }
+    size_t_max node_count = 0;
 
     LOG_STREAM << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; LOG_STREAM.flush();
 
     // Add other nodes
-    size_t_max node_count = 0;
+    // size_t_max remaining_depth_steps = K - DEPTH_CUTOFF - 1;
+    // for (size_t_max depth = K - 1; depth > 0; depth -= depth / remaining_depth_steps--){
     for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
         LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(3) << depth; LOG_STREAM.flush();
         
@@ -245,10 +247,9 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     size_t_max root_node = nodes.size() - 1;
     for (size_t_max i = 0; i < root_node; ++i){
         if (nodes[i].failure == INVALID_NODE()) nodes[i].failure = root_node; // Set all not-yet-set failures
-        // We don't care about failures of internal nodes which will never be visited by failure path
     }
 
-    LOG_STREAM << "Graph construction finished." << std::endl;
+    // LOG_STREAM << "Graph construction finished." << std::endl;
 }
 
 // Converting
@@ -262,7 +263,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
         throw std::invalid_argument("Graph has already been converted to searchable.");
     }
 
-    LOG_STREAM << "Converting graph to searchable..." << std::endl;
+    // LOG_STREAM << "Converting graph to searchable..." << std::endl;
 
     for (size_t_max i = 0; i < N; ++i){ // Convert leaves
         Node& node = nodes[i];
@@ -276,17 +277,19 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameters(
-            size_t_max new_run_score, size_t_max base_extension_score, size_t_max precision) {
-    NEW_RUN_SCORE = new_run_score;
-    BASE_EXTENSION_SCORE = base_extension_score;
+            size_t_max run_penalty, size_t_max extension_penalty, size_t_max precision) {
+    RUN_PENALTY = run_penalty;
+    EXTENSION_PENALTY = extension_penalty;
     SEARCH_CUTOFF = N / std::max(2, 1 << precision);
+
+    LOG_STREAM << "Run penalty: " << run_penalty << std::endl << "Precision: " << precision << std::endl;
 }
 
 // Sorting
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::sort_and_remove_duplicate_kmers() {
-    LOG_STREAM << "Sorting kmers..." << std::endl;
+    // LOG_STREAM << "Sorting kmers..." << std::endl;
     std::sort(kMers.begin(), kMers.end());
     
     if (COMPLEMENTS){
