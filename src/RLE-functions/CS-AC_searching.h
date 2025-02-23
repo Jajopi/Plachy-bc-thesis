@@ -34,10 +34,11 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
 
-    size_t_max max_priority_drop = K * EXTENSION_PENALTY + RUN_PENALTY;
+    size_t_max max_priority_drop = (K - 1) * EXTENSION_PENALTY + RUN_PENALTY;
 
     size_t_max remaining_iterations = max_priority_drop / EXTENSION_PENALTY;
-    LOG_STREAM << "Leaves: " << N << ", iterations: " << remaining_iterations << std::endl;
+    LOG_STREAM << "Leaves, iterations:" << std::endl;
+    LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations << std::endl;
     LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
 
     for (size_t_max priority_drop_limit = EXTENSION_PENALTY;
@@ -63,7 +64,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
         squeeze_uncompleted_leaves(uncompleted_leaves);
     }
 
-    LOG_STREAM << std::endl;
+    LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(12) << uncompleted_leaves.size()
+        << ' ' << std::setw(4) << remaining_iterations << std::endl;
 
     COMPUTED_RESULT = true;
 }

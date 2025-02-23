@@ -11,8 +11,7 @@ GTEST=       $(TESTS)/googletest/googletest
 DATA=        data
 
 reall:
-	make clean
-	make all
+	make clean -s && make all -s
 
 all: kmercamel
 
