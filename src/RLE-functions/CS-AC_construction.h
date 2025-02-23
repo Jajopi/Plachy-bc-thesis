@@ -244,9 +244,10 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
 
     nodes.emplace_back(0, 0, 0);
     
-    size_t_max root_node = nodes.size() - 1;
-    for (size_t_max i = 0; i < root_node; ++i){
-        if (nodes[i].failure == INVALID_NODE()) nodes[i].failure = root_node; // Set all not-yet-set failures
+    size_t_max root_index = nodes.size() - 1;
+    for (auto p : failures){
+        if (p.first == INVALID_LEAF()) continue;
+        nodes[p.second].failure = root_index;
     }
 
     // LOG_STREAM << "Graph construction finished." << std::endl;

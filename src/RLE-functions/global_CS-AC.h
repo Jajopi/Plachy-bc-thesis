@@ -89,7 +89,7 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     csac.construct_graph();
     csac.convert_to_searchable_representation();
 
-    if (run_penalty == 0) run_penalty = log2(kMers.size());
+    if (run_penalty == 0) run_penalty = log2(kMers.size()) + log2(k);
     if (precision == 0) precision = DEFAULT_PRECISION;
     if (precision >= sizeof(size_t_max) * 8) precision = std::numeric_limits<size_t_max>::max();
     csac.set_search_parameters(run_penalty, 1, precision);
