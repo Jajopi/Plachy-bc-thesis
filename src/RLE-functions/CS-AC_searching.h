@@ -86,10 +86,13 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         
         for (size_t_max i = failure_node.leaf_range_begin; i < leaf_range_end; ++i){
             if (nodes[i].used() || components.are_connected(leaf_index, i) ||
+                nodes[leaf_index].complement_index == i ||
                 (COMPLEMENTS && nodes[i].complement_chosen())) continue;
             nodes[i].set_used();
             leaf_node.set_next(i);
             components.connect(leaf_index, i); // Second one pointing at the first one
+            // print_kmer(kMers[leaf_index], K, LOG_STREAM, K); LOG_STREAM << '-';
+            // print_kmer(kMers[i], K, LOG_STREAM, K); LOG_STREAM << std::endl;
 
             if (COMPLEMENTS){
                 nodes[nodes[i].complement_index].set_complement_chosen();
@@ -123,6 +126,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 
         while (node.leaf_range_begin != leaf_range_end &&
                 (nodes[node.leaf_range_begin].used() || // Was already used as next for other leaf
+                  leaf_node.complement_index == node.leaf_range_begin ||
                   components.are_connected(leaf_index, node.leaf_range_begin) || // Is from the same chain as current leaf trying to be completed
                   (COMPLEMENTS && nodes[node.leaf_range_begin].complement_chosen()))){ // Complement was chosen to be used before
             ++node.leaf_range_begin;
@@ -131,6 +135,8 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             nodes[node.leaf_range_begin].set_used();
             leaf_node.set_next(node.leaf_range_begin);
             components.connect(leaf_index, node.leaf_range_begin);
+            // print_kmer(kMers[leaf_index], K, LOG_STREAM, K); LOG_STREAM << ' ';
+            // print_kmer(kMers[node.leaf_range_begin], K, LOG_STREAM, K); LOG_STREAM << std::endl;
 
             if (COMPLEMENTS){
                 nodes[nodes[node.leaf_range_begin].complement_index].set_complement_chosen();
@@ -226,7 +232,10 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     size_t_max actual = INVALID_LEAF();
     kmer_t last_kmer = 0;
     for (size_t_max i = 0; i < N; ++i){
-        if (components.find(i) != i) continue;
+        if (components.find(i) != i){
+            // other_count++;
+            continue;
+        }
         if (COMPLEMENTS && nodes[i].complement_chosen()){
             count++; continue;
         }
@@ -236,7 +245,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
 
         actual = i;
         while (actual != INVALID_LEAF()){
-            other_count++;
+            // other_count++;
             // if (COMPLEMENTS && nodes[actual].complement_chosen()){
             //     // count++; break;
             // }
@@ -284,7 +293,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     // LOG_STREAM << std::endl;
     // LOG_STREAM << "Total length: " << total_length << std::endl;
     // LOG_STREAM << "Run count: " << run_count << std::endl;
-    // /*if (COMPLEMENTS)*/ LOG_STREAM << count << ' ' << other_count << std::endl;
+    /*if (COMPLEMENTS)*/ LOG_STREAM << count << ' ' << other_count << std::endl;
 
     return total_length * EXTENSION_PENALTY + run_count * RUN_PENALTY;
 }

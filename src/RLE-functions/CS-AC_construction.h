@@ -129,7 +129,7 @@ class CuttedSortedAC {
     std::vector<size_t_max> previous;
     std::vector<size_t_max> remaining_priorities;
 
-    void sort_and_remove_duplicate_kmers();
+    void sort_kmers();
 
     void resort_and_shorten_failures(std::vector<std::pair<size_t_max, size_t_max>> &failures, size_t_max depth);
 
@@ -142,17 +142,17 @@ class CuttedSortedAC {
 public:
     CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
         kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(K - DEPTH_CUTOFF),
-        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+        COMPLEMENTS(complements) { sort_kmers(); };
     CuttedSortedAC(std::vector<kmer_t>&& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
         kMers(std::move(kmers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(K - DEPTH_CUTOFF),
-        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+        COMPLEMENTS(complements) { sort_kmers(); };
 
     CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, size_t_max PRACTICAL_DEPTH = 0, bool complements = false) :
         kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(PRACTICAL_DEPTH),
-        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+        COMPLEMENTS(complements) { sort_kmers(); };
     CuttedSortedAC(std::vector<kmer_t>&& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, size_t_max PRACTICAL_DEPTH = 0, bool complements = false) :
         kMers(std::move(kmers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(PRACTICAL_DEPTH),
-        COMPLEMENTS(complements) { sort_and_remove_duplicate_kmers(); };
+        COMPLEMENTS(complements) { sort_kmers(); };
 
     void construct_graph();
 
@@ -289,24 +289,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameter
 // Sorting
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::sort_and_remove_duplicate_kmers() {
-    // LOG_STREAM << "Sorting kmers..." << std::endl;
+inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::sort_kmers() {
     std::sort(kMers.begin(), kMers.end());
-    
-    if (COMPLEMENTS){
-        LOG_STREAM << "Removing duplicate kmers... " << N;
-
-        size_t_max shift = 0;
-        for (size_t_max i = 1; i < N; ++i){
-            if (kMers[i] == kMers[i - 1]) ++shift;
-            else kMers[i - shift] = kMers[i];
-        }
-
-        N -= shift;
-        kMers.resize(N);
-
-        LOG_STREAM << " -> " << N << std::endl;
-    }
 }
 
 // Internal functions

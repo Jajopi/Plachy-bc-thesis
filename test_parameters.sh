@@ -35,10 +35,10 @@ if [[ "$TEST_MODE" != *"F"* ]]; then
 fi
 
 if [[ "$TEST_MODE" == *"N"* ]]; then
-    O1="$(./count_noncomplement_kmers.py -p "$DIR"/csac.txt -k "$K" -t)"
+    O1="$(./count_noncomplement_kmers.py -p "$DIR"/csac.txt -k "$K")"
     O2="$(./count_noncomplement_kmers.py -p "$DIR"/gg.txt -k "$K")"
     if [[ "$TEST_MODE" == *"C"* ]]; then
-        O3="$(./count_kmers.py -p "$DIR"/csac_c.txt -k "$K" -t)"
+        O3="$(./count_kmers.py -p "$DIR"/csac_c.txt -k "$K")"
         O4="$(./count_kmers.py -p "$DIR"/gg_c.txt -k "$K")"
     fi
 fi

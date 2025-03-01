@@ -89,12 +89,14 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     csac.construct_graph();
     csac.convert_to_searchable_representation();
 
-    if (run_penalty == 0) run_penalty = log2(kMers.size()) + log2(k);
+    if (run_penalty == 0) run_penalty = log2(kMers.size());
     if (precision == 0) precision = DEFAULT_PRECISION;
-    if (precision >= sizeof(size_t_max) * 8) precision = std::numeric_limits<size_t_max>::max();
+    if (precision > sizeof(size_t_max) * 8) precision = sizeof(size_t_max) * 8;
     csac.set_search_parameters(run_penalty, 1, precision);
 
     csac.compute_result();
+
+    std::cout << ">superstring k=" << k << std::endl;
     csac.print_result(os);
 }
 
@@ -108,10 +110,15 @@ void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& 
 
         // Add complementary k-mers.
         size_t n = kMers.size();
-        kMers.resize(n * (1 + complements));
         if (complements){
+            kMers.resize(n * 2);
             for (size_t i = 0; i < n; ++i) {
                 kMers[i + n] = ReverseComplement(kMers[i], k);
+                
+                print_kmer(kMers[i], k, std::cout, k);
+                std::cout << ' ' << ':' << ' ';
+                print_kmer(kMers[i + n], k, std::cout, k);
+                std::cout << ' ' << i << std::endl;
             }
         }
 
