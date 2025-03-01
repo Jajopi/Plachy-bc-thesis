@@ -12,8 +12,8 @@ KS = [15, 23, 31, 47, 63, 95, 127]
 def get_results_file_name(file_name):
     return file_name.split(".txt")[0] + "_results.txt"
 
-def compute_objective(result, k):
-    return result[0] + result[1] * math.log2(result[0] * k)
+def compute_objective(result):
+    return result[0] + result[1] * math.log2(result[0])
 
 def run_command(command, output_file_name):
     with open(output_file_name, "a") as output_file:
@@ -60,7 +60,7 @@ def plot(file_name):
                 if len(part.strip()) == 0: continue
         
                 results[i].append(list(map(lambda x: int(float(x)), part.split())))
-                results[i][-1].append(compute_objective(results[i][-1], k))
+                results[i][-1].append(compute_objective(results[i][-1]))
                 results[i][-1].append(0)
                 results[i][-1][-1] = results[i][-1][-2] / results[0][-1][-2]
 

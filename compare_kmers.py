@@ -81,33 +81,35 @@ def encode_kmer(kmer):  # canonical representation
 def compare_kmers(ms1, ms2, k):
     K = set()  # set of canonical k-mers
     L = set()
-    all = set()
+    # all = set()
 
-    # first pass - collecting k-mers
+    redk, redl = 0, 0
     for i in range(len(ms1) - k + 1):
         if ms1[i].isupper():
             Q = ms1[i:i + k].upper()
             Qnum = encode_kmer(Q)
+            if Qnum in K: redk += 1
             K.add(Qnum)
-            all.add(Q)
-            #this works even for tail, short k-mers aren't in K nms.append(maskedSuperstring[i].lower())
+            # all.add(Q)
     for i in range(len(ms2) - k + 1):
         if ms2[i].isupper():
             Q = ms2[i:i + k].upper()
             Qnum = encode_kmer(Q)
+            if Qnum in L: redl += 1
             L.add(Qnum)
-            all.add(Q)
+            # all.add(Q)
     
-    ink, inl = 0, 0
-    for kmer in sorted(all):
-        if not encode_kmer(kmer) in L:
-            print(kmer + " " * k + "-")
-            ink += 1
-    for kmer in sorted(all):
-        if not encode_kmer(kmer) in K:
-            print("-" + " " * k + kmer)
-            inl += 1
-    print(ink, inl)
+    # ink, inl = 0, 0
+    # for kmer in sorted(all):
+    #     if not encode_kmer(kmer) in L:
+    #         # print(kmer + " " * k + "-")
+    #         ink += 1
+    # for kmer in sorted(all):
+    #     if not encode_kmer(kmer) in K:
+    #         # print("-" + " " * k + kmer)
+    #         inl += 1
+    # print(ink, inl)
+    print(redk, redl)
 
 
 def main():
