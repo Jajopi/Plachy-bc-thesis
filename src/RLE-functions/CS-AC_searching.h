@@ -5,6 +5,7 @@
 #include <limits>
 #include <iostream>
 #include <iomanip>
+#include <random>
 
 #include "../kmers.h"
 #include "CS-AC_construction.h"
@@ -33,6 +34,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
 
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
+    std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(0));
 
     size_t_max max_priority_drop = (K - 1) * EXTENSION_PENALTY + RUN_PENALTY;
 
@@ -41,6 +43,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations << std::endl;
     LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
 
+    size_t_max next_preffered_leaf = INVALID_LEAF();
     for (size_t_max priority_drop_limit = EXTENSION_PENALTY;
                     priority_drop_limit <= max_priority_drop;
                     priority_drop_limit += EXTENSION_PENALTY){
@@ -51,14 +54,37 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
         if (uncompleted_leaf_count < SEARCH_CUTOFF) break;
         
         for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
+            
             size_t_max leaf_index = uncompleted_leaves[i];
+            
+            if (next_preffered_leaf != INVALID_LEAF()){
+                leaf_index = next_preffered_leaf;
+                --i;
+                next_preffered_leaf = INVALID_LEAF();
 
-            // LOG_STREAM << leaf_index << ' ';
-            if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
-            // LOG_STREAM << "... ";
-
-            bool result = try_complete_leaf(leaf_index, priority_drop_limit);
-            if (result) uncompleted_leaves[i] = INVALID_LEAF();
+                if (nodes[leaf_index].next() != INVALID_LEAF()) continue;
+                if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
+    
+                bool result = try_complete_leaf(leaf_index, priority_drop_limit);
+                if (result){
+                    next_preffered_leaf = nodes[leaf_index].next();
+                }
+            }
+            else{
+                if (leaf_index == INVALID_LEAF()) continue;
+                if (nodes[leaf_index].next() != INVALID_LEAF()){
+                    uncompleted_leaves[i] = INVALID_LEAF();
+                    continue;
+                }
+                if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
+    
+                bool result = try_complete_leaf(leaf_index, priority_drop_limit);
+                if (result){
+                    uncompleted_leaves[i] = INVALID_LEAF();
+                    next_preffered_leaf = nodes[leaf_index].next();
+                }
+            }
+            
         }
 
         squeeze_uncompleted_leaves(uncompleted_leaves);
@@ -123,6 +149,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 
         size_t_max leaf_range_end = nodes[node_index + 1].original_leaf_range_begin();
         if (leaf_range_end < node.leaf_range_begin) leaf_range_end = N;
+        size_t_max old_begin = node.leaf_range_begin;
 
         while (node.leaf_range_begin != leaf_range_end &&
                 (nodes[node.leaf_range_begin].used() || // Was already used as next for other leaf
@@ -152,7 +179,9 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             return true;
         }
         else {
-            node.leaf_range_begin = node.original_leaf_range_begin(); // Reset the counter -- improves precision AND speed 
+            if (old_begin != node.original_leaf_range_begin()){ // If we didn't skip all the leaves in single search
+                node.leaf_range_begin = node.original_leaf_range_begin(); // Reset the counter -- improves precision AND speed
+            }
         }
 
         for (size_t_max i = node.original_leaf_range_begin(); i < leaf_range_end; ++i){ // Search also through already used leaves
@@ -226,7 +255,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     // LOG_STREAM << "Printing..." << std::endl;
     size_t_max total_length = 0;
     size_t_max run_count = 1;
-    size_t_max count = 0, other_count = 0;
+    // size_t_max count = 0, other_count = 0;
 
     bool first = true;
     size_t_max actual = INVALID_LEAF();
@@ -237,9 +266,10 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
             continue;
         }
         if (COMPLEMENTS && nodes[i].complement_chosen()){
-            count++; continue;
+            // count++;
+            continue;
         }
-        other_count++;
+        // other_count++;
 
         // nodes[nodes[i].complement_index].set_complement_chosen();
 
@@ -293,7 +323,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     // LOG_STREAM << std::endl;
     // LOG_STREAM << "Total length: " << total_length << std::endl;
     // LOG_STREAM << "Run count: " << run_count << std::endl;
-    /*if (COMPLEMENTS)*/ LOG_STREAM << count << ' ' << other_count << std::endl;
+    // /*if (COMPLEMENTS)*/ LOG_STREAM << count << ' ' << other_count << std::endl;
 
     return total_length * EXTENSION_PENALTY + run_count * RUN_PENALTY;
 }
