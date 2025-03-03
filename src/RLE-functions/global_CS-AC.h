@@ -9,8 +9,8 @@
 #include "CS-AC_construction.h"
 #include "CS-AC_searching.h"
 
-#define RESERVED_MEMORY_GB 4
-#define DEFAULT_PRECISION 15
+#define RESERVED_MEMORY_GB 5
+#define DEFAULT_PRECISION 18
 // #define DEBUG_FAST_COMPILATION
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g

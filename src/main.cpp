@@ -13,7 +13,7 @@
 #include "ac/streaming.h"
 #include "khash_utils.h"
 
-#include "ilp/global_ilp.h"
+// #include "ilp/global_ilp.h"
 #include "RLE-functions/global_CS-AC.h"
 
 #include <iostream>
