@@ -74,11 +74,8 @@ struct CS_AC_Node {
     // ... -> node = was used, node -> ... = was completed
     // Leaves while searching - bitmask:
     // 1 - was used
-    // 2 - complement was chosen (used / completed)
     inline bool used() const { return (bitmask_and_next & size_t_max(1)) != 0; };
     inline void set_used() { bitmask_and_next |= size_t_max(1); };
-    // inline bool complement_chosen() const { return (bitmask_and_next & size_t_max(2)) != 0; };
-    // inline void set_complement_chosen() { bitmask_and_next |= size_t_max(2); };
 
     inline size_t_max next() const { return bitmask_and_next >> K_BIT_SIZE; };
     inline void set_next(size_t_max next) {
@@ -178,8 +175,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
         throw std::invalid_argument("Graph has already been constructed.");
     }
 
-    // LOG_STREAM << "Constructing the graph..." << std::endl;
-
     nodes.reserve(PRACTICAL_DEPTH * N);
 
     std::vector<std::pair<size_t_max, size_t_max>> failures(N); // kmer index, last index
@@ -194,8 +189,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     LOG_STREAM << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; LOG_STREAM.flush();
 
     // Add other nodes
-    // size_t_max remaining_depth_steps = K - DEPTH_CUTOFF - 1;
-    // for (size_t_max depth = K - 1; depth > 0; depth -= depth / remaining_depth_steps--){
     for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
         LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(3) << depth; LOG_STREAM.flush();
         
@@ -249,8 +242,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
         if (p.first == INVALID_LEAF()) continue;
         nodes[p.second].failure = root_index;
     }
-
-    // LOG_STREAM << "Graph construction finished." << std::endl;
 }
 
 // Converting
@@ -263,8 +254,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
     if (CONVERTED_TO_SEARCHABLE){
         throw std::invalid_argument("Graph has already been converted to searchable.");
     }
-
-    // LOG_STREAM << "Converting graph to searchable..." << std::endl;
 
     for (size_t_max i = 0; i < N; ++i){ // Convert leaves
         Node& node = nodes[i];
@@ -353,12 +342,11 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::find_complemen
         else if (kMers[middle] < complement) begin = middle + 1;
         else end = middle - 1;
     }
-    // print_kmer(kMers[kmer_index], K, LOG_STREAM); LOG_STREAM << ' ';
-    // print_kmer(kMers[begin], K, LOG_STREAM); LOG_STREAM << std::endl;
     return begin; // Complement should always be present
 }
 
-// Debug printing
+// Debug printing 
+//                  - probably not working now!
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_stats(std::ostream &os)
