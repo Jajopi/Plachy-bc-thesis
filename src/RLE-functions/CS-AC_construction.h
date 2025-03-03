@@ -77,8 +77,8 @@ struct CS_AC_Node {
     // 2 - complement was chosen (used / completed)
     inline bool used() const { return (bitmask_and_next & size_t_max(1)) != 0; };
     inline void set_used() { bitmask_and_next |= size_t_max(1); };
-    inline bool complement_chosen() const { return (bitmask_and_next & size_t_max(2)) != 0; };
-    inline void set_complement_chosen() { bitmask_and_next |= size_t_max(2); };
+    // inline bool complement_chosen() const { return (bitmask_and_next & size_t_max(2)) != 0; };
+    // inline void set_complement_chosen() { bitmask_and_next |= size_t_max(2); };
 
     inline size_t_max next() const { return bitmask_and_next >> K_BIT_SIZE; };
     inline void set_next(size_t_max next) {

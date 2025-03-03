@@ -35,6 +35,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
     std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(0));
+    size_t_max next_preffered_leaf = INVALID_LEAF();
 
     size_t_max max_priority_drop = (K - 1) * EXTENSION_PENALTY + RUN_PENALTY;
 
@@ -43,7 +44,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations << std::endl;
     LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
 
-    size_t_max next_preffered_leaf = INVALID_LEAF();
     for (size_t_max priority_drop_limit = EXTENSION_PENALTY;
                     priority_drop_limit <= max_priority_drop;
                     priority_drop_limit += EXTENSION_PENALTY){
@@ -63,7 +63,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
                 next_preffered_leaf = INVALID_LEAF();
 
                 if (nodes[leaf_index].next() != INVALID_LEAF()) continue;
-                if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
+                // if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
     
                 bool result = try_complete_leaf(leaf_index, priority_drop_limit);
                 if (result){
@@ -76,12 +76,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
                     uncompleted_leaves[i] = INVALID_LEAF();
                     continue;
                 }
-                if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
+                // if (COMPLEMENTS && nodes[leaf_index].complement_chosen()) continue;
     
                 bool result = try_complete_leaf(leaf_index, priority_drop_limit);
                 if (result){
-                    uncompleted_leaves[i] = INVALID_LEAF();
                     next_preffered_leaf = nodes[leaf_index].next();
+                    uncompleted_leaves[i] = INVALID_LEAF();
                 }
             }
             
@@ -111,9 +111,11 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         if (leaf_range_end < failure_node.leaf_range_begin) leaf_range_end = N;
         
         for (size_t_max i = failure_node.leaf_range_begin; i < leaf_range_end; ++i){
-            if (nodes[i].used() || components.are_connected(leaf_index, i) ||
-                nodes[leaf_index].complement_index == i ||
-                (COMPLEMENTS && nodes[i].complement_chosen())) continue;
+            if (nodes[i].used() ||
+                components.are_connected(leaf_index, i) ||
+                (COMPLEMENTS && leaf_node.complement_index == i))
+                // (COMPLEMENTS && nodes[i].complement_chosen()))
+                    continue;
             nodes[i].set_used();
             leaf_node.set_next(i);
             components.connect(leaf_index, i); // Second one pointing at the first one
@@ -121,8 +123,11 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             // print_kmer(kMers[i], K, LOG_STREAM, K); LOG_STREAM << std::endl;
 
             if (COMPLEMENTS){
-                nodes[nodes[i].complement_index].set_complement_chosen();
-                nodes[leaf_node.complement_index].set_complement_chosen();
+                // nodes[nodes[i].complement_index].set_complement_chosen();
+                // nodes[leaf_node.complement_index].set_complement_chosen();
+                nodes[leaf_node.complement_index].set_used();
+                nodes[nodes[i].complement_index].set_next(leaf_node.complement_index);
+                components.connect(nodes[i].complement_index, leaf_node.complement_index);
             }
             // LOG_STREAM << i << std::endl;
             return true;
@@ -153,9 +158,8 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 
         while (node.leaf_range_begin != leaf_range_end &&
                 (nodes[node.leaf_range_begin].used() || // Was already used as next for other leaf
-                  leaf_node.complement_index == node.leaf_range_begin ||
-                  components.are_connected(leaf_index, node.leaf_range_begin) || // Is from the same chain as current leaf trying to be completed
-                  (COMPLEMENTS && nodes[node.leaf_range_begin].complement_chosen()))){ // Complement was chosen to be used before
+                components.are_connected(leaf_index, node.leaf_range_begin) || // Is from the same chain as current leaf trying to be completed
+                (COMPLEMENTS && leaf_node.complement_index == node.leaf_range_begin))){ // Complement was chosen to be used before
             ++node.leaf_range_begin;
         }
         if (node.leaf_range_begin != leaf_range_end){ // We found at least one suitable leaf to complete the current one
@@ -166,8 +170,9 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             // print_kmer(kMers[node.leaf_range_begin], K, LOG_STREAM, K); LOG_STREAM << std::endl;
 
             if (COMPLEMENTS){
-                nodes[nodes[node.leaf_range_begin].complement_index].set_complement_chosen();
-                nodes[leaf_node.complement_index].set_complement_chosen();
+                nodes[leaf_node.complement_index].set_used();
+                nodes[nodes[node.leaf_range_begin].complement_index].set_next(leaf_node.complement_index);
+                components.connect(nodes[node.leaf_range_begin].complement_index, leaf_node.complement_index);
             }
 
             if (last_leaf != leaf_index){
@@ -227,9 +232,9 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::squeeze_uncompleted_
     size_t_max count = uncompleted_leaves.size(), shift = 0;
     
     for (size_t_max i = 0; i < count; ++i){
-        if (uncompleted_leaves[i] == INVALID_LEAF() || (
-                COMPLEMENTS && nodes[uncompleted_leaves[i]].complement_chosen()))
-            ++shift;
+        if (uncompleted_leaves[i] == INVALID_LEAF()) ++shift;
+        // || (
+                // COMPLEMENTS && nodes[uncompleted_leaves[i]].complement_chosen()))
         else uncompleted_leaves[i - shift] = uncompleted_leaves[i];
     }
 
@@ -265,13 +270,15 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
             // other_count++;
             continue;
         }
-        if (COMPLEMENTS && nodes[i].complement_chosen()){
-            // count++;
-            continue;
+        if (COMPLEMENTS){
+            components.connect(i, components.find(nodes[i].complement_index));
+            // Prevent complementary chain from being printed later
         }
+        // if (COMPLEMENTS && nodes[i].complement_chosen()){
+        //     // count++;
+        //     continue;
+        // }
         // other_count++;
-
-        // nodes[nodes[i].complement_index].set_complement_chosen();
 
         actual = i;
         while (actual != INVALID_LEAF()){
