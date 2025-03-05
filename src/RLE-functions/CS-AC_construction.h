@@ -270,7 +270,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameter
             size_t_max run_penalty, size_t_max extension_penalty, size_t_max precision) {
     RUN_PENALTY = run_penalty;
     EXTENSION_PENALTY = extension_penalty;
-    SEARCH_CUTOFF = N / std::max(2, 1 << precision);
+    if (precision == sizeof(size_t_max) * 8) SEARCH_CUTOFF = 0;
+    else SEARCH_CUTOFF = N / (1 << precision);
 
     LOG_STREAM << "Run penalty: " << run_penalty << std::endl << "Precision: " << precision << std::endl;
 }
