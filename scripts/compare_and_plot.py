@@ -89,8 +89,11 @@ def compute_missing():
         for alg in ALGORITHMS:
             for k in KS:
                 for complements in (False, True):
-                    if (alg, inp, k, complements) in results.keys() and not RECOMPUTE_ALL:
-                        continue
+                    if (alg, inp, k, complements) in results.keys():
+                        if not RECOMPUTE_ALL:
+                            continue
+                        if alg != "csac": # no need to recompute gg
+                            continue
 
                     run_with_parameters(inp, alg, k, complements)
 
