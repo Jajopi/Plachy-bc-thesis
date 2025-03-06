@@ -10,6 +10,7 @@
 #include "CS-AC_searching.h"
 
 #define RESERVED_MEMORY_GB 5
+#define RESERVED_MEMORY_FRACTION 1 / 8
 #define DEFAULT_PRECISION 18
 // #define DEBUG_FAST_COMPILATION
 
@@ -33,7 +34,11 @@
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 size_t compute_max_depth(size_t kmer_count){
-    size_t available_memory = getTotalSystemMemory() - (RESERVED_MEMORY_GB * size_t(1 << 30));
+    size_t total_memory = getTotalSystemMemory();
+    size_t available_memory = total_memory - std::max(
+        RESERVED_MEMORY_GB * size_t(1 << 30),
+        total_memory * RESERVED_MEMORY_FRACTION
+    );
     std::cerr << "Available memory: " << available_memory << std::endl;
 
     size_t storing_memory_per_kmer = sizeof(kmer_t);

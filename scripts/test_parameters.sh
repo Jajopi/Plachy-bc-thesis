@@ -10,10 +10,10 @@ TEST_MODE="${3:-""}"
 # "F" for output in one line without explanatory texts
 
 DIR="parameters_testing_outputs"
-TIME_FORMAT_STRING="time:\t%E\nmemory:\t%M"
+TIME_FORMAT_STRING="time:\t%U\nmemory:\t%M"
 
 if [[ "$TEST_MODE" == *"F"* ]]; then
-    TIME_FORMAT_STRING="%e %M"
+    TIME_FORMAT_STRING="%U %M"
 fi
 
 mkdir -p "$DIR";
