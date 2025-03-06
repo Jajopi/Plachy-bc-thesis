@@ -1,4 +1,41 @@
-# KmerCamel🐫
+# This repo README
+
+## Running and testing scripts
+
+There are quite many testing scripts now in the `scripts` directory.
+
+If you want to compare both `gg` and `csac` with one specific input,
+use `test_parameters.sh` with two or three arguments in defined order:
+- the path to input file (usually `data/...`)
+- k
+- optionally string of one or more uppercase letters:
+  - `C` to run also for complements
+  - `N` to also count the number of kmers in resulting masked superstrings
+  (takes awfully lot of time, uses `count[_noncomplement]_kmers.py`)
+  - `F` to output all four paramters of each of the program runs on a single line
+  (in order length of MS, number of runs, time spent, max memory used) --
+  this option is priamry intended for legacy results plotting
+
+If you want to compare huge amounts inputs (defined in file `compare_inputs`),
+use `compare_and_plot.py`.
+If you only need to plot results yet computed, comment out the call to function
+`compute_missing` in the script.
+You can comment out the call to the plotting function, unsurprisingly.
+Other parameters can also be modified in global variables at the top of the script.
+Internal shellscript for usage of this script is `measure_run.sh`.
+**The plotting function doesn't work yet.**
+
+`copy_to_kam.sh` is used to copy files to *kamenozrout* and invoke recompilation
+of current version of 🐫.
+You probably won't use it.
+By default, the set of files to be copied is specified in the script
+(just as the target directory).
+You can provide any number of arguments, then those files are copied instead.
+If you provide at least one argument, the recompilation is not invoked.
+If the first argument is `-`, default files are copied without recompilation.
+
+
+# KmerCamel🐫 README
 [![KmerCamel test](https://github.com/OndrejSladky/kmercamel/actions/workflows/ci.yml/badge.svg)](https://github.com/OndrejSladky/kmercamel/actions/)
 
 <!-- vim-markdown-toc GFM -->
