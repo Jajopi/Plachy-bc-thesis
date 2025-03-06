@@ -10,7 +10,7 @@
 #include "CS-AC_searching.h"
 
 #define RESERVED_MEMORY_GB 5
-#define RESERVED_MEMORY_FRACTION 1 / 8
+#define RESERVED_MEMORY_FRACTION 2 / 8
 #define DEFAULT_PRECISION 18
 // #define DEBUG_FAST_COMPILATION
 

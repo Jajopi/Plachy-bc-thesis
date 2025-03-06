@@ -10,3 +10,4 @@ count_noncomplement_kmers.py
 parameters_testing_outputs
 compare_inputs*
 __pycache__
+results.txt

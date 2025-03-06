@@ -4,11 +4,15 @@ set -ueo pipefail
 
 TARGET="kam"
 TARGET_DIR="/home/janci/bakalarka/"
-DEFAULT_PARAMS="src scripts Makefile create-version.sh"
+DEFAULT_PARAMS="src scripts Makefile create-version.sh compare_inputs.txt"
 # does not include "data" which can be unpractically big and does not change often
 
 ALL_PARAMS="$*"
 TO_COPY="${ALL_PARAMS:-"$DEFAULT_PARAMS"}"
+SKIP_BUILD="${1:-""}"
+if [[ "$SKIP_BUILD" == "-" ]]; then
+    TO_COPY="$DEFAULT_PARAMS"
+fi
 
 COMMAND="cd $TARGET_DIR; nohup make reall"
 
