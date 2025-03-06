@@ -8,6 +8,8 @@
 
 #include "../kmers.h"
 
+#define MAX_DEPTH_WIDTH 3
+
 template<typename size_t_max>
 class UnionFind {
     std::vector<size_t_max> roots;
@@ -45,7 +47,7 @@ public:
 };
 
 
-template<typename size_t_max, size_t_max K_BIT_SIZE> // K_BIT_SIZE must be >= 3
+template<typename size_t_max, size_t_max K_BIT_SIZE>
 struct CS_AC_Node {
     union {
         size_t_max depth_and_kmer_index;        // Construction + searching - original_leaf_range_begin comes from constructing
@@ -79,7 +81,7 @@ struct CS_AC_Node {
 
     inline size_t_max next() const { return bitmask_and_next >> K_BIT_SIZE; };
     inline void set_next(size_t_max next) {
-        bitmask_and_next &= size_t_max(3);
+        bitmask_and_next &= size_t_max(1);
         bitmask_and_next |= (next << K_BIT_SIZE);
     };
     inline bool completed() const { return next() != INVALID_LEAF(); };
@@ -186,11 +188,12 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     }
     size_t_max node_count = 0;
 
-    LOG_STREAM << K << " --> " << DEPTH_CUTOFF << ": " << std::setfill(' ') << std::setw(3) << K; LOG_STREAM.flush();
+    LOG_STREAM << K << " --> " << DEPTH_CUTOFF << ": "
+        << std::setfill(' ') << std::setw(MAX_DEPTH_WIDTH) << K; LOG_STREAM.flush();
 
     // Add other nodes
     for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
-        LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(3) << depth; LOG_STREAM.flush();
+        LOG_STREAM << "\b\b\b" << std::setfill(' ') << std::setw(MAX_DEPTH_WIDTH) << depth; LOG_STREAM.flush();
         
         size_t_max last_node_count = node_count;
         node_count = nodes.size();
@@ -233,7 +236,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
             i = j - 1;
         }
     }
-    LOG_STREAM << "\b\b\b" << std::setw(3) << DEPTH_CUTOFF << std::endl;
+    LOG_STREAM << "\b\b\b" << std::setw(MAX_DEPTH_WIDTH) << DEPTH_CUTOFF << std::endl;
 
     nodes.emplace_back(0, 0, 0);
     
@@ -273,7 +276,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameter
     if (precision >= sizeof(size_t_max) * 8) SEARCH_CUTOFF = 0; // Infinite precision (no early ending)
     else SEARCH_CUTOFF = N / (1 << precision);
 
-    LOG_STREAM << "Run penalty: " << run_penalty << std::endl << "Precision: " << precision << std::endl;
+    LOG_STREAM << "Run penalty: " << run_penalty << std::endl;
+    // LOG_STREAM << "Precision: " << precision << std::endl;
 }
 
 // Sorting

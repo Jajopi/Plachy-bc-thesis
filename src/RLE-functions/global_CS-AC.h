@@ -39,7 +39,7 @@ size_t compute_max_depth(size_t kmer_count){
         RESERVED_MEMORY_GB * size_t(1 << 30),
         total_memory * RESERVED_MEMORY_FRACTION
     );
-    std::cerr << "Available memory: " << available_memory << std::endl;
+    // std::cerr << "Available memory: " << available_memory << std::endl;
 
     size_t storing_memory_per_kmer = sizeof(kmer_t);
     

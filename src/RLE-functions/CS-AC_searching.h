@@ -10,7 +10,8 @@
 #include "../kmers.h"
 #include "CS-AC_construction.h"
 
-// Searching
+#define MAX_COUNT_WIDTH 12
+#define MAX_ITERS_WIDTH 3
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
@@ -38,16 +39,15 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
     size_t_max max_priority_drop = (K - 1) * EXTENSION_PENALTY + RUN_PENALTY;
 
     size_t_max remaining_iterations = max_priority_drop / EXTENSION_PENALTY;
-    LOG_STREAM << "Leaves, iterations:" << std::endl;
-    LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations << std::endl;
-    LOG_STREAM << std::setw(12) << N << ' ' << std::setw(4) << remaining_iterations; LOG_STREAM.flush();
+    LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations << std::endl;
+    LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
 
     for (size_t_max priority_drop_limit = EXTENSION_PENALTY;
                     priority_drop_limit <= max_priority_drop;
                     priority_drop_limit += EXTENSION_PENALTY){
         size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
-        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(12) << uncompleted_leaf_count
-            << ' ' << std::setw(4) << remaining_iterations--; LOG_STREAM.flush();
+        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaf_count
+            << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations--; LOG_STREAM.flush();
         
         if (uncompleted_leaf_count < SEARCH_CUTOFF) break;
         
@@ -86,8 +86,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
         squeeze_uncompleted_leaves(uncompleted_leaves);
     }
 
-    LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(12) << uncompleted_leaves.size()
-        << ' ' << std::setw(4) << remaining_iterations << std::endl;
+    LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaves.size()
+        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
 
     COMPUTED_RESULT = true;
 }
@@ -240,6 +240,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     if (!COMPUTED_RESULT){
         throw std::invalid_argument("Result has not been computed yet.");
     }
+    LOG_STREAM << std::endl << "Printing..."; LOG_STREAM.flush();
 
     size_t_max total_length = 0;
     size_t_max run_count = 1;
@@ -298,6 +299,8 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     }
     print_kmer_masked(last_kmer, K, os, K);
     total_length += K;
+
+    LOG_STREAM << std::endl;
 
     return total_length * EXTENSION_PENALTY + run_count * RUN_PENALTY;
 }
