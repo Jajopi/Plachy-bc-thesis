@@ -117,14 +117,7 @@ void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& 
         size_t n = kMers.size();
         if (complements){
             kMers.resize(n * 2);
-            for (size_t i = 0; i < n; ++i) {
-                kMers[i + n] = ReverseComplement(kMers[i], k);
-                
-                print_kmer(kMers[i], k, std::cout, k);
-                std::cout << ' ' << ':' << ' ';
-                print_kmer(kMers[i + n], k, std::cout, k);
-                std::cout << ' ' << i << std::endl;
-            }
+            for (size_t i = 0; i < n; ++i) kMers[i + n] = ReverseComplement(kMers[i], k);
         }
 
         size_t limit = kMers.size() * (size_t(1) << K_BIT_SIZE);
