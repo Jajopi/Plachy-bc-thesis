@@ -16,6 +16,7 @@ OUTPUT_FILE="results.txt"
 TIME_FORMAT_STRING="%U %M"
 
 TEMP_DIR="$(mktemp -d)"
+trap '{ rm -rf -- "$TEMP_DIR"; }' EXIT
 
 if [[ "$PROGRAM" == *"C"* ]]; then
     /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
@@ -40,5 +41,3 @@ L="$(cat "$TEMP_DIR"/ms.txt | tail -n 1 | wc -m)"
 R="$(cat "$TEMP_DIR"/ms.txt | tail -n 1 | tr [a-z] '0' | tr -s '0' | tr -d [A-Z] | wc -m)"
 
 printf "%s %s := %d %d %s\n" "$(date +"%F:%T")" "$ARGS" "$L" "$R" "$(cat "$TEMP_DIR"/resources.txt)" >> "$OUTPUT_FILE"
-
-rm -rf TEMP_DIR

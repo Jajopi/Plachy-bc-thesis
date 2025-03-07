@@ -41,6 +41,7 @@ def parse_header(header):
         params = header.split()[1:]
         
         c = False
+        alg = "global"
         for i, p in enumerate(params):
             if p == "-a":
                 alg = params[i + 1]
