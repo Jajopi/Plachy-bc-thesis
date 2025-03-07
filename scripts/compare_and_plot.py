@@ -20,7 +20,7 @@ def compute_objective(result):
 
 def run_command(command):
     print(*command)
-    subprocess.run(command, text=True, check=True)
+    subprocess.run(command, text=True, check=True, stdout=subprocess.STDOUT)
 
 def run_with_parameters(input_name, algorithm, k, complements=False):
     run_command(["./scripts/measure_run.sh",

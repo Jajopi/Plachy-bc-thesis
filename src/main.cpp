@@ -113,7 +113,7 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
         wrapper.kh_destroy_set(kMers);
 
-        GlobalCS_AC(kMerVec, *of, k, complements, run_penalty, precision);
+        GlobalCS_AC(wrapper, kMerVec, *of, k, complements, run_penalty, precision);
     } else {
         /*auto data = ReadFasta(path);
         if (data.empty()) {

@@ -41,4 +41,4 @@ R="$(cat "$TEMP_DIR"/ms.txt | tail -n 1 | tr [a-z] '0' | tr -s '0' | tr -d [A-Z]
 
 printf "%s %s := %d %d %s\n" "$(date +"%F:%T")" "$ARGS" "$L" "$R" "$(cat "$TEMP_DIR"/resources.txt)" >> "$OUTPUT_FILE"
 
-rm -rf TEMP_DIR
+rm -rf "$TEMP_DIR"

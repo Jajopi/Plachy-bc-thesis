@@ -10,41 +10,38 @@
 #include "../kmers.h"
 #include "CS-AC_construction.h"
 
+#define RANDOM_SEED 0
 #define MAX_COUNT_WIDTH 12
 #define MAX_ITERS_WIDTH 3
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
-    if (!CONVERTED_TO_SEARCHABLE){
-        throw std::invalid_argument("Graph has not been converted to searchable yet.");
-    }
     if (RUN_PENALTY == INVALID_NODE()){
         throw std::invalid_argument("Mandatory parameter RUN_PENALTY was not set.");
-    }
-    if (EXTENSION_PENALTY == INVALID_NODE()){
-        throw std::invalid_argument("Mandatory parameter EXTENSION_PENALTY was not set.");
     }
 
     components = UnionFind(N);
     backtracks.reserve(N); // Chains for leaves where backtracking is needed
     backtrack_indexes.resize(N, INVALID_LEAF()); // Indexes into backtracks for each leaf
     previous.resize(N);
+    next.resize(N);
     remaining_priorities.resize(N);
+    used.resize(N, false);
 
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
-    std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(0));
+    std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(RANDOM_SEED));
     size_t_max next_preffered_leaf = INVALID_LEAF();
 
-    size_t_max max_priority_drop = (K - 1) * EXTENSION_PENALTY + RUN_PENALTY;
+    size_t_max max_priority_drop = (K - 1) + RUN_PENALTY;
 
-    size_t_max remaining_iterations = max_priority_drop / EXTENSION_PENALTY;
+    size_t_max remaining_iterations = max_priority_drop;
     LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations << std::endl;
     LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
 
-    for (size_t_max priority_drop_limit = EXTENSION_PENALTY;
+    for (size_t_max priority_drop_limit = 1;
                     priority_drop_limit <= max_priority_drop;
-                    priority_drop_limit += EXTENSION_PENALTY){
+                    ++priority_drop_limit){
         size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
         LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaf_count
             << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations--; LOG_STREAM.flush();
@@ -60,23 +57,23 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
                 --i;
                 next_preffered_leaf = INVALID_LEAF();
 
-                if (nodes[leaf_index].next() != INVALID_LEAF()) continue;
+                if (next[leaf_index] != INVALID_LEAF()) continue;
     
                 bool result = try_complete_leaf(leaf_index, priority_drop_limit);
                 if (result){
-                    next_preffered_leaf = nodes[leaf_index].next();
+                    next_preffered_leaf = next[leaf_index];
                 }
             }
             else{
                 if (leaf_index == INVALID_LEAF()) continue;
-                if (nodes[leaf_index].next() != INVALID_LEAF()){
+                if (next[leaf_index] != INVALID_LEAF()){
                     uncompleted_leaves[i] = INVALID_LEAF();
                     continue;
                 }
     
                 bool result = try_complete_leaf(leaf_index, priority_drop_limit);
                 if (result){
-                    next_preffered_leaf = nodes[leaf_index].next();
+                    next_preffered_leaf = next[leaf_index];
                     uncompleted_leaves[i] = INVALID_LEAF();
                 }
             }
@@ -96,28 +93,30 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
-        size_t_max leaf_index, size_t_max priority_drop_limit) {
-    
-    if (priority_drop_limit == EXTENSION_PENALTY){
-        Node& leaf_node = nodes[leaf_index];
-        Node& failure_node = nodes[leaf_node.failure];
-        if (failure_node.depth() < K - 1) return false;
-        
-        size_t_max leaf_range_end = nodes[leaf_node.failure + 1].original_leaf_range_begin();
-        if (leaf_range_end < failure_node.leaf_range_begin) leaf_range_end = N;
-        
-        for (size_t_max i = failure_node.leaf_range_begin; i < leaf_range_end; ++i){
-            if (nodes[i].used() ||
-                components.are_connected(leaf_index, i) ||
-                (COMPLEMENTS && leaf_node.complement_index == i)) continue;
-            nodes[i].set_used();
-            leaf_node.set_next(i);
-            components.connect(leaf_index, i); // Second one pointing at the first one
+        size_t_max leaf_to_connect, size_t_max priority_drop_limit) {
+
+    if (priority_drop_limit == 1){
+        size_t_max chain_begin = leaf_to_connect * PRACTICAL_DEPTH;
+        size_t_max first_failure_leaf = chains[chain_begin];
+
+        if (first_failure_leaf == INVALID_LEAF()) return false;
+        size_t_max leaf_complement = complements[leaf_to_connect];
+
+        for (size_t_max i = first_failure_leaf; i < N &&
+                BitPrefix(kMers[first_failure_leaf], K, K - 1) == BitPrefix(kMers[i], K, K - 1);
+                ++i){
+            if (leaf_to_connect == i || (COMPLEMENTS && leaf_complement == i) ||
+                used[i] ||
+                components.are_connected(leaf_to_connect, i)) continue;
+
+            used[i] = true;
+            next[leaf_to_connect] = i;
+            components.connect(leaf_to_connect, i); // Second one pointing at the first one
 
             if (COMPLEMENTS){
-                nodes[leaf_node.complement_index].set_used();
-                nodes[nodes[i].complement_index].set_next(leaf_node.complement_index);
-                components.connect(nodes[i].complement_index, leaf_node.complement_index);
+                used[leaf_complement] = true;
+                next[complements[i]] = leaf_complement;
+                components.connect(complements[i], leaf_complement);
             }
 
             return true;
@@ -125,59 +124,57 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 
         return false;
     }
-    
-    size_t_max root_node_index = nodes.size() - 1;
-    Node& leaf_node = nodes[leaf_index];
 
     size_t_max minimal_priority_limit = INVALID_NODE() - priority_drop_limit;
-    stack.clear(); // Stores priority, current node_index, last_leaf index
-    push_failure_of_node_into_stack(INVALID_NODE(), leaf_index, minimal_priority_limit, leaf_index); // priority, node, limit, last_leaf
+
+    stack.clear(); // Stores priority, current leaf_index, current chain depth, last_leaf index
+    push_failure_of_node_into_stack(INVALID_NODE(), leaf_to_connect, K, minimal_priority_limit, leaf_to_connect); // priority, node, limit, last_leaf
 
     while (!stack.empty()){
         auto t = stack.back(); stack.pop_back();
         size_t_max priority = std::get<0>(t);
-        size_t_max node_index = std::get<1>(t);
+        size_t_max leaf_index = std::get<1>(t);
+        size_t_max chain_depth = std::get<2>(t);
         size_t_max last_leaf = std::get<2>(t);
-        Node& node = nodes[node_index];
         
-        if (node_index == root_node_index) return false;
+        if (chain_depth == 0) return false;
 
-        size_t_max leaf_range_end = nodes[node_index + 1].original_leaf_range_begin();
-        if (leaf_range_end < node.leaf_range_begin) leaf_range_end = N;
-        size_t_max old_begin = node.leaf_range_begin;
+        size_t_max chain_node = leaf_index * PRACTICAL_DEPTH + chain_depth;
+        size_t_max first_failure_leaf = chains[chain_node];
 
-        while (node.leaf_range_begin != leaf_range_end &&
-                (nodes[node.leaf_range_begin].used() || // Was already used as next for other leaf
-                components.are_connected(leaf_index, node.leaf_range_begin) || // Is from the same chain as current leaf trying to be completed
-                (COMPLEMENTS && leaf_node.complement_index == node.leaf_range_begin))){ // Complement was chosen to be used before
-            ++node.leaf_range_begin;
-        }
-        if (node.leaf_range_begin != leaf_range_end){ // We found at least one suitable leaf to complete the current one
-            nodes[node.leaf_range_begin].set_used();
-            leaf_node.set_next(node.leaf_range_begin);
-            components.connect(leaf_index, node.leaf_range_begin);
+        // if (first_failure_leaf == INVALID_LEAF()) ; TODO cannot
+        size_t_max leaf_complement = complements[leaf_to_connect];
+
+        for (size_t_max i = first_failure_leaf; i < N &&
+                BitPrefix(kMers[first_failure_leaf], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
+                ++i){
+            if ((COMPLEMENTS && leaf_complement == i) ||
+                used[i] ||
+                components.are_connected(leaf_to_connect, i)) continue;
+
+            used[i] = true;
+            next[leaf_to_connect] = i;
+            components.connect(leaf_to_connect, i); // Second one pointing at the first one
 
             if (COMPLEMENTS){
-                nodes[leaf_node.complement_index].set_used();
-                nodes[nodes[node.leaf_range_begin].complement_index].set_next(leaf_node.complement_index);
-                components.connect(nodes[node.leaf_range_begin].complement_index, leaf_node.complement_index);
+                used[leaf_complement] = true;
+                next[complements[i]] = leaf_complement;
+                components.connect(complements[i], leaf_complement);
             }
 
-            if (last_leaf != leaf_index){
-                previous[node.leaf_range_begin] = last_leaf;
-                set_backtrack_path_for_leaf(leaf_index, node.leaf_range_begin);
+            if (last_leaf != leaf_to_connect){
+                previous[i] = last_leaf;
+                set_backtrack_path_for_leaf(leaf_to_connect, i);
             }
-
+    
             return true;
         }
-        else {
-            if (old_begin != node.original_leaf_range_begin()){ // If we didn't skip all the leaves in single search
-                node.leaf_range_begin = node.original_leaf_range_begin(); // Reset the counter -- improves precision AND speed
-            }
-        }
 
-        for (size_t_max i = node.original_leaf_range_begin(); i < leaf_range_end; ++i){ // Search also through already used leaves
-            if (i == leaf_index) continue;
+        for (size_t_max i = first_failure_leaf; i < N &&
+            BitPrefix(kMers[first_failure_leaf], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
+            ++i){
+            if (i == leaf_index || i == leaf_to_connect ||
+                (COMPLEMENTS && i == leaf_complement)) continue;
 
             if (remaining_priorities[i] >= priority - minimal_priority_limit){
                 continue; // There is nothing to be found with remaining steps
@@ -185,10 +182,10 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             remaining_priorities[i] = priority - minimal_priority_limit;
             
             previous[i] = last_leaf;
-            push_failure_of_node_into_stack(priority, i, minimal_priority_limit, i); // Add failure of that leaf
+            push_failure_of_node_into_stack(priority, i, K, minimal_priority_limit, i); // Add failure of that leaf
         }
 
-        push_failure_of_node_into_stack(priority, node_index, minimal_priority_limit, last_leaf); // Add failure of current node
+        push_failure_of_node_into_stack(priority, leaf_index, chain_depth, minimal_priority_limit, last_leaf); // Add failure of current node
     }
 
     return false;
@@ -196,21 +193,30 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node_into_stack(
-        size_t_max priority, size_t_max node_index, size_t_max minimal_priority_limit, size_t_max last_leaf) {
-    Node& node = nodes[node_index];
-    Node& failure_node = nodes[node.failure];
-
-    size_t_max node_depth = (node_index < N) ? K : node.depth(); // Leaves have always depth of K and complement_index is stored in depth field
+        size_t_max priority, size_t_max leaf_index, size_t_max chain_depth, size_t_max minimal_priority_limit, size_t_max last_leaf) {
+    size_t_max failure_depth = chain_depth - 1;
+    size_t_max failure_index = INVALID_LEAF();
+    while (failure_depth > 0){
+        if (failure_depth > DEPTH_CUTOFF){
+            failure_index = chains[leaf_index * PRACTICAL_DEPTH + K - 1 - failure_depth];
+        }
+        else {
+            failure_index = find_failure_kmer_index(kMers[leaf_index], failure_depth);
+        }
+        if (failure_index != INVALID_LEAF()) break;
+        --failure_depth;
+    }
+    if (failure_depth == 0) return;
     
-    size_t_max failure_priority = priority - (node_depth - failure_node.depth()) * EXTENSION_PENALTY;
-    if (node_depth == K - 1 || (node_depth == K && failure_node.depth() < K - 1)){ // Run will be interrupted
+    size_t_max failure_priority = priority - (chain_depth - failure_depth);
+    if (chain_depth == K - 1 || (chain_depth == K && failure_depth < K - 1)){ // Run will be interrupted
         failure_priority -= RUN_PENALTY;
         if (minimal_priority_limit == 0) return; // Special value indicating no interruptions are expected
     }
 
     if (failure_priority < minimal_priority_limit) return;
 
-    stack.push_back(std::make_tuple(failure_priority, node.failure, last_leaf));
+    stack.push_back(std::make_tuple(failure_priority, failure_index, failure_depth, last_leaf));
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
@@ -254,7 +260,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
             continue;
         }
         if (COMPLEMENTS){
-            components.connect(i, components.find(nodes[i].complement_index));
+            components.connect(i, components.find(complements[i]));
             // Prevent complementary chain from being printed later
         }
 
@@ -263,7 +269,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
             if (first){
                 first = false;
                 last_kmer = kMers[i];
-                actual = nodes[i].next();
+                actual = next[i];
                 continue;
             }
 
@@ -278,8 +284,8 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
             if (backtrack_indexes[actual] != INVALID_LEAF()){
                 size_t_max backtrack_index = backtrack_indexes[actual];
                 size_t_max actual_backtrack = backtracks[backtrack_index];
-                size_t_max next = nodes[actual].next();
-                while (actual_backtrack != next){
+                size_t_max next_node = next[actual];
+                while (actual_backtrack != next_node){
                     // other_count++;
                     kmer_t actual_kmer = kMers[actual_backtrack];
                     size_t_max ov = max_overlap_length(last_kmer, actual_kmer, K);
@@ -294,7 +300,7 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
                 }
             }
 
-            actual = nodes[actual].next();
+            actual = next[actual];
         }        
     }
     print_kmer_masked(last_kmer, K, os, K);
@@ -302,5 +308,5 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
 
     LOG_STREAM << std::endl;
 
-    return total_length * EXTENSION_PENALTY + run_count * RUN_PENALTY;
+    return total_length + run_count * RUN_PENALTY;
 }

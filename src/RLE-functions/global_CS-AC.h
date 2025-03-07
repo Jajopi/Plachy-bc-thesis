@@ -43,15 +43,17 @@ size_t compute_max_depth(size_t kmer_count){
 
     size_t storing_memory_per_kmer = sizeof(kmer_t);
     
-    size_t constructing_memory_per_kmer = 2 * sizeof(size_t_max) * 2;   // failures, copied when shortening
     size_t searching_memory_per_kmer = sizeof(size_t_max)               // unionfind
-                                     + sizeof(size_t_max) * 3           // stack, 3 numbers per element, up to N elements
+                                     + sizeof(size_t_max)               // chains_beginnings
+                                     + sizeof(size_t_max) * 4           // stack, 4 numbers per element, up to N elements?
                                      + sizeof(size_t_max)               // backtracks
                                      + sizeof(size_t_max)               // backtrack_indexes
                                      + sizeof(size_t_max)               // previous
+                                     + sizeof(size_t_max)               // next
+                                     + sizeof(size_t_max)               // complements
                                      + sizeof(size_t_max);              // remaining_priorities
     
-    size_t memory_reserved_per_kmer = storing_memory_per_kmer + std::max(constructing_memory_per_kmer, searching_memory_per_kmer);
+    size_t memory_reserved_per_kmer = storing_memory_per_kmer + searching_memory_per_kmer;
     size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kmer_count;
 
     // std::cerr << "Memory reserved for kmers: " << memory_reserved_for_kmers << " ( " << kmer_count << " )" << std::endl;
@@ -60,9 +62,8 @@ size_t compute_max_depth(size_t kmer_count){
         throw std::invalid_argument("Not enough memory for storing the data.");
     }
 
-    size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers);
-    size_t available_nodes = (available_memory_for_nodes) / sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>);
-    size_t available_depth = available_nodes / kmer_count;
+    size_t available_memory_for_chains = (available_memory - memory_reserved_for_kmers);
+    size_t available_depth = available_memory_for_chains / kmer_count;
     // std::cerr << "Available nodes: " << available_nodes << ' ' << sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>) << std::endl;
 
     if (available_depth < 2){ // at least top two levels
@@ -72,7 +73,7 @@ size_t compute_max_depth(size_t kmer_count){
     return available_depth;
 }
 
-template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
+template <typename kh_wrapper_t, typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty, size_t precision){
 
@@ -90,14 +91,13 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     }
 
     auto csac = CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>(
-        kMers, size_t_max(k), size_t_max(depth_cutoff), size_t_max(practical_depth), complements);
+        kMers, size_t_max(k), size_t_max(depth_cutoff), complements);
     csac.construct_graph();
-    csac.convert_to_searchable_representation();
 
     if (run_penalty == 0) run_penalty = log2(kMers.size());
     if (precision == 0) precision = DEFAULT_PRECISION;
     if (precision > sizeof(size_t_max) * 8) precision = sizeof(size_t_max) * 8;
-    csac.set_search_parameters(run_penalty, 1, precision);
+    csac.set_search_parameters(run_penalty, precision);
 
     csac.compute_result();
 
@@ -105,7 +105,7 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     csac.print_result(os);
 }
 
-template <typename kmer_t, size_t K_BIT_SIZE>
+template <typename kh_wrapper_t, typename kmer_t, size_t K_BIT_SIZE>
 void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty, size_t precision){
     try {
@@ -117,44 +117,36 @@ void set_limit_and_compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& 
         size_t n = kMers.size();
         if (complements){
             kMers.resize(n * 2);
-            for (size_t i = 0; i < n; ++i) {
-                kMers[i + n] = ReverseComplement(kMers[i], k);
-                
-                print_kmer(kMers[i], k, std::cout, k);
-                std::cout << ' ' << ':' << ' ';
-                print_kmer(kMers[i + n], k, std::cout, k);
-                std::cout << ' ' << i << std::endl;
-            }
+            for (size_t i = 0; i < n; ++i) kMers[i + n] = ReverseComplement(kMers[i], k);
         }
 
         size_t limit = kMers.size() * (size_t(1) << K_BIT_SIZE);
 
-        if      (limit < (size_t(1) << 15)) compute_with_cs_ac<kmer_t, uint16_t, K_BIT_SIZE>(kMers, os, k, complements, run_penalty, precision);
-        else if (limit < (size_t(1) << 31)) compute_with_cs_ac<kmer_t, uint32_t, K_BIT_SIZE>(kMers, os, k, complements, run_penalty, precision);
-        else                                compute_with_cs_ac<kmer_t, uint64_t, K_BIT_SIZE>(kMers, os, k, complements, run_penalty, precision);
+        if      (limit < (size_t(1) << 15))
+            compute_with_cs_ac<kh_wrapper_t, kmer_t, uint16_t, K_BIT_SIZE>(kMers, os, k, complements, run_penalty, precision);
+        else if (limit < (size_t(1) << 31))
+            compute_with_cs_ac<kh_wrapper_t, kmer_t, uint32_t, K_BIT_SIZE>(kMers, os, k, complements, run_penalty, precision);
+        else
+            compute_with_cs_ac<kh_wrapper_t, kmer_t, uint64_t, K_BIT_SIZE>(kMers, os, k, complements, run_penalty, precision);
     }
     catch (const std::exception& e){
         std::cerr << std::endl << "Exception was thrown: " << e.what() << std::endl;
     }
 }
 
-template <typename kmer_t>
-void GlobalCS_AC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
+template <typename kh_wrapper_t, typename kmer_t>
+void GlobalCS_AC(kh_wrapper_t wrapper, std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty = 0, size_t precision = 0);
 
-void GlobalCS_AC(std::vector<kmer32_t>& kMers, std::ostream& os, size_t k,
+void GlobalCS_AC(kmer_dict64_t wrapper, std::vector<kmer64_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty = 0, size_t precision = 0) {
-    set_limit_and_compute_with_cs_ac<kmer32_t, 4>(kMers, os, k, complements, run_penalty, precision);
+    set_limit_and_compute_with_cs_ac<kmer_dict64_t, kmer64_t, 5>(kMers, os, k, complements, run_penalty, precision);
 }
-void GlobalCS_AC(std::vector<kmer64_t>& kMers, std::ostream& os, size_t k,
+void GlobalCS_AC(kmer_dict128_t wrapper, std::vector<kmer128_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty = 0, size_t precision = 0) {
-    set_limit_and_compute_with_cs_ac<kmer64_t, 5>(kMers, os, k, complements, run_penalty, precision);
+    set_limit_and_compute_with_cs_ac<kmer_dict128_t, kmer128_t, 6>(kMers, os, k, complements, run_penalty, precision);
 }
-void GlobalCS_AC(std::vector<kmer128_t>& kMers, std::ostream& os, size_t k,
+void GlobalCS_AC(kmer_dict256_t wrapper, std::vector<kmer256_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty = 0, size_t precision = 0) {
-    set_limit_and_compute_with_cs_ac<kmer128_t, 6>(kMers, os, k, complements, run_penalty, precision);
-}
-void GlobalCS_AC(std::vector<kmer256_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
-    set_limit_and_compute_with_cs_ac<kmer256_t, 7>(kMers, os, k, complements, run_penalty, precision);
+    set_limit_and_compute_with_cs_ac<kmer_dict256_t, kmer256_t, 7>(kMers, os, k, complements, run_penalty, precision);
 }
