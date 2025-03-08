@@ -78,20 +78,10 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty, size_t precision){
 
     size_t max_depth = compute_max_depth<kmer_t, size_t_max, K_BIT_SIZE>(kMers.size());
-
-    size_t depth_cutoff = 0;
-    if (max_depth < k) depth_cutoff = k - max_depth;
-    size_t practical_depth = max_depth;
-
-    size_t_max exponent = 1;
-    while (size_t(1 << (2 * exponent)) < kMers.size()) ++exponent;
-    if (exponent > depth_cutoff){
-        depth_cutoff = 0;
-        ++practical_depth;
-    }
+    if (max_depth >= k) max_depth = k - 1;
 
     auto csac = CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>(
-        kMers, size_t_max(k), size_t_max(depth_cutoff), complements);
+        kMers, size_t_max(k), max_depth, complements);
     csac.construct_graph();
 
     if (run_penalty == 0) run_penalty = log2(kMers.size());

@@ -50,7 +50,6 @@ public:
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 class CuttedSortedAC {
-    static inline size_t_max INVALID_LEAF() { return std::numeric_limits<size_t_max>::max(); };
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
 
     std::vector<kmer_t> kMers;  // sorted
@@ -59,8 +58,7 @@ class CuttedSortedAC {
     
     size_t_max K;               // kmer-length
     size_t_max N;               // number of kmers, number of leaves
-    size_t_max DEPTH_CUTOFF;    // first not-to-be-reached depth
-    size_t_max PRACTICAL_DEPTH;
+    size_t_max DEPTH;    // first not-to-be-reached depth
     size_t_max SEARCH_CUTOFF;   // fraction of uncompleted leaves to switch to fast mode
     bool COMPLEMENTS;           // whether or not complements are used
     
@@ -80,23 +78,25 @@ class CuttedSortedAC {
     void sort_kmers();
 
     bool try_complete_leaf(size_t_max leaf_to_connect, size_t_max priority_drop_limit);
-    void push_failure_of_node_into_stack(size_t_max priority, size_t_max leaf_index, size_t_max chain_depth, size_t_max priority_drop_limit, size_t_max last_leaf);
+    void push_failure_of_node_into_stack(size_t_max priority, size_t_max node_index, size_t_max node_depth, size_t_max last_leaf);
     void squeeze_uncompleted_leaves(std::vector<size_t_max>& unclompleted_leaves);
     void set_backtrack_path_for_leaf(size_t_max origin_leaf, size_t_max next_leaf);
     
     size_t_max find_complement_kmer_index(size_t_max kmer_index);
-    size_t_max find_failure_kmer_index(kmer_t kmer, size_t_max suffix = 0);
+    size_t_max find_first_failure_leaf(kmer_t kmer, size_t_max suffix = 0);
 public:
-    CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
-        kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(K - DEPTH_CUTOFF),
-        COMPLEMENTS(complements) { sort_kmers(); };
-    CuttedSortedAC(std::vector<kmer_t>&& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
-        kMers(std::move(kmers)), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(K - DEPTH_CUTOFF),
-        COMPLEMENTS(complements) { sort_kmers(); };
+    CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max depth, bool complements = false) :
+        kMers(kmers), K(K), N(kMers.size()), DEPTH(depth), COMPLEMENTS(complements) {
+            sort_kmers();
+            if (DEPTH >= K) DEPTH = K - 1;
+        };
+    CuttedSortedAC(std::vector<kmer_t>&& kmers, size_t_max K, size_t_max depth, bool complements = false) :
+        kMers(std::move(kmers)), K(K), N(kMers.size()), DEPTH(depth), COMPLEMENTS(complements) {
+            sort_kmers();
+            if (DEPTH >= K) DEPTH = K - 1;
+        };
 
     void construct_graph();
-
-    void convert_to_searchable_representation();
     void set_search_parameters(size_t_max run_penalty,
                                size_t_max precision);
     void compute_result();
@@ -113,15 +113,16 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
         throw std::invalid_argument("Graph has already been constructed.");
     }
 
-    chains.reserve(N * (K - DEPTH_CUTOFF));
+    chains.reserve(N * DEPTH);
     // chain_beginnings.resize(N + 1);
+    if (COMPLEMENTS) complements.resize(N);
 
     for (size_t_max i = 0; i < N; ++i){
         kmer_t current = kMers[i];
         // chain_beginnings[i] = chains.size();
 
-        for (size_t_max depth = K - 1; depth > DEPTH_CUTOFF; --depth){
-            size_t_max failure_index = find_failure_kmer_index(current, depth);
+        for (size_t_max depth = K - 1; depth > K - 1 - DEPTH; --depth){
+            size_t_max failure_index = find_first_failure_leaf(current, depth);
             chains.push_back(failure_index);
         }
 
@@ -166,18 +167,18 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::find_complemen
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::find_failure_kmer_index(kmer_t kmer, size_t_max suffix) {
-    kmer_t searched = BitSuffix(kmer, suffix);
+inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::find_first_failure_leaf(kmer_t kmer, size_t_max length) {
+    kmer_t searched = BitSuffix(kmer, length);
     
     size_t_max begin = 0, end = N - 1;
     while (begin < end){
         size_t_max middle = (begin + end) / 2;
-        kmer_t current = BitSuffix(kMers[middle], suffix);
+        kmer_t current = BitPrefix(kMers[middle], K, length);
 
-        if (current == searched) return middle;
+        if (current == searched) end = middle;
         else if (current < searched) begin = middle + 1;
         else end = middle - 1;
     }
-    if (BitSuffix(kMers[begin], suffix) != searched) return INVALID_LEAF();
+    if (BitPrefix(kMers[begin], K, length) != searched) return INVALID_NODE();
     return begin;
 }

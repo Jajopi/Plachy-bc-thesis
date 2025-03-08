@@ -20,7 +20,7 @@ def compute_objective(result):
 
 def run_command(command):
     print(*command)
-    subprocess.run(command, text=True, check=True, stdout=subprocess.STDOUT)
+    subprocess.run(command, text=True, check=True)
 
 def run_with_parameters(input_name, algorithm, k, complements=False):
     run_command(["./scripts/measure_run.sh",
@@ -86,8 +86,10 @@ def compute_missing():
     results = load_all_results(RESULTS_FILE_NAME)
 
     for inp in load_all_inputs(INPUT_FILE_NAME):
+        big = len(inp.split()) > 1 and inp.split()[1] == "-"
+        inp = inp.split()[0]
         for alg in ALGORITHMS:
-            for k in KS:
+            for k in (KS[:5] if big else KS):
                 for complements in (False, True):
                     if (alg, inp, k, complements) in results.keys():
                         if not RECOMPUTE_ALL:
