@@ -94,15 +94,15 @@ template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         size_t_max leaf_to_complete, size_t_max priority_drop_limit) {
 
-    print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
-    LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
+    // print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
+    // LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
 
     if (priority_drop_limit == 1){
         size_t_max chain_begin = leaf_to_complete * DEPTH;
         size_t_max first_failure_leaf = chains[chain_begin];
 
         if (first_failure_leaf == INVALID_NODE()){
-            LOG_STREAM << std::endl;
+            // LOG_STREAM << std::endl;
             return false;
         }
         size_t_max leaf_complement = COMPLEMENTS ? complements[leaf_to_complete] : INVALID_NODE();
@@ -124,11 +124,11 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
                 components.connect(complements[i], leaf_complement);
             }
 
-            LOG_STREAM << " -> " << i << ' '; print_kmer(kMers[i], K, LOG_STREAM, K); LOG_STREAM << std::endl;
+            // LOG_STREAM << " -> " << i << ' '; print_kmer(kMers[i], K, LOG_STREAM, K); LOG_STREAM << std::endl;
             return true;
         }
 
-        LOG_STREAM << std::endl;
+        // LOG_STREAM << std::endl;
         return false;
     }
 
@@ -141,18 +141,17 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         size_t_max leaf_index = std::get<1>(t);
         size_t_max chain_depth = std::get<2>(t);
         size_t_max last_leaf = std::get<3>(t);
-        LOG_STREAM << std::endl << priority << ' ' << leaf_index << ' ' << chain_depth << ' ' << last_leaf << ' ';
-        print_kmer(kMers[leaf_index], K, LOG_STREAM, K);
+        // LOG_STREAM << std::endl << priority << ' ' << leaf_index << ' ' << chain_depth << ' ' << last_leaf << ' ';
+        // print_kmer(kMers[leaf_index], K, LOG_STREAM, K);
 
-        if (chain_depth == 0){
-            continue;
-        }
+        // if (chain_depth == 0) continue;
 
         size_t_max leaf_complement = COMPLEMENTS ? complements[leaf_to_complete] : INVALID_NODE();
 
         for (size_t_max i = leaf_index; i < N &&
                 BitPrefix(kMers[leaf_index], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
                 ++i){
+            // LOG_STREAM << ' ' << i << std::endl;
             if ((COMPLEMENTS && leaf_complement == i) ||
                 used[i] ||
                 components.are_connected(leaf_to_complete, i)) continue;
@@ -172,7 +171,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
                 set_backtrack_path_for_leaf(leaf_to_complete, i);
             }
 
-            LOG_STREAM << " -> " << i << ' '; print_kmer(kMers[i], K, LOG_STREAM, K); LOG_STREAM << std::endl;
+            // LOG_STREAM << " -> " << i << ' '; print_kmer(kMers[i], K, LOG_STREAM, K); LOG_STREAM << std::endl;
             return true;
         }
 
@@ -187,12 +186,11 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
 
             previous[i] = last_leaf;
             push_failure_of_node_into_stack(priority, i, K, i); // Add failure of that leaf
-            LOG_STREAM << ' ' << 'p' << ' ' << i;
         }
 
         push_failure_of_node_into_stack(priority, leaf_index, chain_depth, last_leaf); // Add failure of current node
     }
-    LOG_STREAM << std::endl;
+    // LOG_STREAM << std::endl;
     return false;
 }
 
@@ -215,13 +213,14 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node
     }
     if (failure_depth == 0) return;
     
-    if (priority <= node_depth - failure_depth) return;
+    if (priority < node_depth - failure_depth) return;
     priority -= (node_depth - failure_depth);
     if (node_depth == K - 1 || (node_depth == K && failure_depth < K - 1)){ // Run will be interrupted
-        if (priority <= RUN_PENALTY) return;
+        if (priority < RUN_PENALTY) return;
         priority -= RUN_PENALTY;
     }
 
+    // LOG_STREAM << " p " << failure_index;
     stack.push_back(std::make_tuple(priority, failure_index, failure_depth, last_leaf));
 }
 
