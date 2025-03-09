@@ -227,12 +227,28 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::squeeze_uncompleted_
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_backtrack_path_for_leaf(size_t_max origin_leaf, size_t_max next_leaf) {
+    size_t_max last_size = backtracks.size();
+
     size_t_max actual = next_leaf;
     while (actual != origin_leaf){
         backtracks.push_back(actual);
         actual = previous[actual];
     }
     backtrack_indexes[origin_leaf] = backtracks.size() - 1;
+
+    if (COMPLEMENTS){
+        size_t_max new_size = backtracks.size();
+        size_t_max count = new_size - last_size;
+        for (size_t_max i = 0; i < count; ++i) backtracks.push_back(INVALID_LEAF());
+        
+        size_t_max index = new_size + count - 1;
+        size_t_max actual = previous[next_leaf];
+        while (index >= last_size + count){
+            backtracks[index--] = nodes[actual].complement_index;
+            actual = previous[actual];
+        }
+        backtrack_indexes[nodes[next_leaf].complement_index] = backtracks.size() - 1;
+    }
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>

@@ -19,14 +19,14 @@ fi
 mkdir -p "$DIR";
 
 /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_time.txt \
-    ./kmercamel -p "$INPUT" -k "$K" -a csac --precision 100 > "$DIR"/csac.txt
+    ./kmercamel -p "$INPUT" -k "$K" -a csac --precision 100 --run-penalty 200 > "$DIR"/csac.txt
 /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_time.txt \
     ./kmercamel -p "$INPUT" -k "$K" > "$DIR"/gg_raw.txt && \
     ./kmercamel optimize -p "$DIR"/gg_raw.txt -a runs -k "$K" > "$DIR"/gg.txt
 
 if [[ "$TEST_MODE" == *"C"* ]]; then        
     /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_c_time.txt \
-        ./kmercamel -p "$INPUT" -k "$K" -a csac -c --precision 100 > "$DIR"/csac_c.txt
+        ./kmercamel -p "$INPUT" -k "$K" -a csac -c --precision 100 --run-penalty 200 > "$DIR"/csac_c.txt
     /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_c_time.txt \
         ./kmercamel -p "$INPUT" -k "$K" -c > "$DIR"/gg_c_raw.txt && \
         ./kmercamel optimize -p "$DIR"/gg_c_raw.txt -a runs -k "$K" > "$DIR"/gg_c.txt
