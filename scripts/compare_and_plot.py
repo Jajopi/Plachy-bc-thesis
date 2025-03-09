@@ -126,7 +126,7 @@ def plot_all():
         for alg in ALGORITHMS:
             for complements in (False, True):
                 ys, xs = [list() for label in LABELS], []
-                for k in KS:
+                for k in KS[1:]: # exclude k = 15
                     if not (alg, inp, k, complements) in results.keys(): continue
 
                     d = results[(alg, inp, k, complements)]
@@ -137,7 +137,7 @@ def plot_all():
         
                 for i, label in enumerate(LABELS):
                     sns.lineplot(y=ys[i], x=xs, ax=axs[i // 3, i % 3],
-                                 marker="o" if complements else ".", markeredgewidth=0,
+                                 marker="o" if complements else "s", markeredgewidth=0,
                                  label=alg + ("(c)" if complements else ""))
                     # for y, x in zip(ys[i], xs):
                     #     ax.text(x, y, "{:.2E}".format(y).split("E")[0],
@@ -147,7 +147,7 @@ def plot_all():
                     #             stretch="ultra-condensed",
                     #             rotation=45 * (1 if complements == (alg == ALG_NEW) else -1))
         
-        for i in range(len(LABELS)):
+        for i, label in enumerate(LABELS):
             ax = axs[i // 3, i % 3]
             ax.set_title(label)
             ax.set(xticks=xs)
@@ -156,5 +156,5 @@ def plot_all():
         fig.savefig(f"./{FIG_DIR}/{inp}.svg")
 
 if __name__ == "__main__":
-    compute_missing()
+    # compute_missing()
     plot_all()
