@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import subprocess
-import matplotlib.pyplot as plt
-import seaborn as sns
 import math
 
 INPUT_DIR = "data"
@@ -97,10 +95,11 @@ def compute_missing():
     results = load_all_results(RESULTS_FILE_NAME)
 
     for inp in load_all_inputs(INPUT_FILE_NAME):
-        big = len(inp.split()) > 1 and inp.split()[1] == "-"
+        limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
         inp = inp.split()[0]
         for alg in ALGORITHMS:
-            for k in (KS[:5] if big else KS):
+            for k in KS:
+                if k >= limit: continue
                 for complements in (False, True):
                     if (alg, inp, k, complements) in results.keys():
                         if not RECOMPUTE_ALL:
@@ -110,51 +109,5 @@ def compute_missing():
 
                     run_with_parameters(inp, alg, k, complements)
 
-def plot_all():
-    plt.rcParams["font.family"] = "serif"
-
-    results = load_all_results(RESULTS_FILE_NAME)
-
-    for inp in load_all_inputs(INPUT_FILE_NAME):
-        inp = inp.split()[0]
-        print(inp)
-
-        fig, axs = plt.subplots(2, 3)
-        fig.set_figheight(12)
-        fig.set_figwidth(18)
-        fig.suptitle(inp)
-        for alg in ALGORITHMS:
-            for complements in (False, True):
-                ys, xs = [list() for label in LABELS], []
-                for k in KS[1:]: # exclude k = 15
-                    if not (alg, inp, k, complements) in results.keys(): continue
-
-                    d = results[(alg, inp, k, complements)]
-                    # print((alg, inp, k, complements))
-                    xs.append(k)
-                    for i in range(len(LABELS)):
-                        ys[i].append(d[LABELS[i]])
-        
-                for i, label in enumerate(LABELS):
-                    sns.lineplot(y=ys[i], x=xs, ax=axs[i // 3, i % 3],
-                                 marker="o" if complements else "s", markeredgewidth=0,
-                                 label=alg + ("(c)" if complements else ""))
-                    # for y, x in zip(ys[i], xs):
-                    #     ax.text(x, y, "{:.2E}".format(y).split("E")[0],
-                    #             alpha=0.5,
-                    #             horizontalalignment="left" if complements else "right",
-                    #             verticalalignment="bottom" if alg == ALG_NEW else "top",
-                    #             stretch="ultra-condensed",
-                    #             rotation=45 * (1 if complements == (alg == ALG_NEW) else -1))
-        
-        for i, label in enumerate(LABELS):
-            ax = axs[i // 3, i % 3]
-            ax.set_title(label)
-            ax.set(xticks=xs)
-        plt.legend()
-        # plt.show()
-        fig.savefig(f"./{FIG_DIR}/{inp}.svg")
-
 if __name__ == "__main__":
-    # compute_missing()
-    plot_all()
+    compute_missing()
