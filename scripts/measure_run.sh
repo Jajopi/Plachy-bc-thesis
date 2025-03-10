@@ -23,18 +23,28 @@ if [[ "$PROGRAM" == *"C"* ]]; then
         ./kmercamel $ARGS > "$TEMP_DIR"/ms.txt
 else
     K=""
+    COMPLEMENTS=false
     while [[ $# -gt 0 ]]; do
         if [[ "$1" == *"-k"* ]]; then
             shift
             K="$1"
             break
         fi
+        if [[ "$1" == *"-c"* ]]; then
+            COMPLEMENTS=true
+        fi
         shift
     done
 
-    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
-        ./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && \
-        ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K" > "$TEMP_DIR"/ms.txt
+    if [[ "$COMPLEMENTS" = true ]]; then
+        /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
+            ./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && \
+            ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K" -c > "$TEMP_DIR"/ms.txt
+    else
+        /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
+            ./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && \
+            ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K" > "$TEMP_DIR"/ms.txt
+    fi
 fi
 
 L="$(cat "$TEMP_DIR"/ms.txt | tail -n 1 | wc -m)"

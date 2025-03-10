@@ -13,6 +13,7 @@ def plot_all():
         inp = inp.split()[0]
         print(inp)
         empty = True
+        max_xs = []
 
         fig, axs = plt.subplots(2, 3)
         fig.set_figheight(12)
@@ -30,6 +31,8 @@ def plot_all():
                     xs.append(k)
                     for i in range(len(LABELS)):
                         ys[i].append(d[LABELS[i]])
+
+                if len(xs) > len(max_xs): max_xs = xs
         
                 for i, label in enumerate(LABELS):
                     sns.lineplot(y=ys[i], x=xs, ax=axs[i // 3, i % 3],
@@ -47,7 +50,7 @@ def plot_all():
             for i, label in enumerate(LABELS):
                 ax = axs[i // 3, i % 3]
                 ax.set_title(label)
-                ax.set(xticks=xs)
+                ax.set(xticks=max_xs)
             plt.legend()
             # plt.show()
             fig.savefig(f"./{FIG_DIR}/{inp}.svg")
