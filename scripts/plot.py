@@ -54,6 +54,7 @@ def plot_all():
             plt.legend()
             # plt.show()
             fig.savefig(f"./{FIG_DIR}/{inp}.svg")
+        else: print("(skipped)")
 
 if __name__ == "__main__":
     plot_all()

@@ -137,7 +137,6 @@ class CuttedSortedAC {
     void squeeze_uncompleted_leaves(std::vector<size_t_max>& unclompleted_leaves);
     void set_backtrack_path_for_leaf(size_t_max origin_leaf, size_t_max next_leaf);
     
-    size_t_max find_complement_kmer_index(size_t_max kmer_index);
 public:
     CuttedSortedAC(const std::vector<kmer_t>& kmers, size_t_max K, size_t_max DEPTH_CUTOFF = 0, bool complements = false) :
         kMers(kmers), K(K), N(kMers.size()), DEPTH_CUTOFF(DEPTH_CUTOFF), PRACTICAL_DEPTH(K - DEPTH_CUTOFF),
@@ -163,10 +162,6 @@ public:
     size_t_max print_result(std::ostream& os);
 
     std::ostream& LOG_STREAM = std::cerr;
-    void print_stats(std::ostream& os = std::cerr);
-    void print_sorted(std::ostream& os = std::cerr);
-    void print_topological(std::ostream& os = std::cerr);
-    void print_topological(std::ostream& os, size_t_max root, size_t_max depth);
 };
 
 // Constructing
@@ -286,7 +281,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_search_parameter
     else SEARCH_CUTOFF = N / (1 << precision);
 
     LOG_STREAM << "Run penalty: " << run_penalty << std::endl;
-    // LOG_STREAM << "Precision: " << precision << std::endl;
 }
 
 // Sorting
@@ -343,90 +337,4 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::resort_and_shorten_f
     }
 
     failures = std::move(sorted_failures);
-}
-
-template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::find_complement_kmer_index(size_t_max kmer_index) {
-    kmer_t complement = ReverseComplement(kMers[kmer_index], K);
-    
-    size_t_max begin = 0, end = N - 1;
-    while (begin < end){
-        size_t_max middle = (begin + end) / 2;
-        if (kMers[middle] == complement) return middle;
-        else if (kMers[middle] < complement) begin = middle + 1;
-        else end = middle - 1;
-    }
-    return begin; // Complement should always be present
-}
-
-// Debug printing 
-//                  - probably not working now!
-
-template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_stats(std::ostream &os)
-{
-    if (CONVERTED_TO_SEARCHABLE){
-        throw std::invalid_argument("Graph has already been converted to searchable and stats cannot be computed.");
-    }
-
-    os << "Computing stats..." << std::endl;
-    std::vector<size_t_max> depth_count(K + 1, 0);
-    
-    size_t_max node_count = nodes.size();
-    for (size_t_max i = 0; i < node_count; ++i){
-        depth_count[nodes[i].depth()]++;
-    }
-
-    os << "Depths:" << std::endl;
-    for (size_t_max i = 0; i <= K; i++){
-        if (depth_count[i] == 0) continue;
-        os << i << ":\t" << depth_count[i] << std::endl;
-    }
-}
-
-template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_sorted(std::ostream& os) {
-    if (CONVERTED_TO_SEARCHABLE){
-        throw std::invalid_argument("Graph has already been converted to searchable and cannot be printed.");
-    }
-    
-    size_t_max i = 0;
-    for (Node node : nodes){
-        os << i++ << ":\t";
-        node.print(os);
-        os << ":\t";
-        for (size_t_max c = 0; c < node.depth(); ++c) os << NucleotideAtIndex(kMers[node.kmer_index()], K, c);
-        os << std::endl;
-    }
-}
-
-template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_topological(std::ostream& os) {
-    if (CONVERTED_TO_SEARCHABLE){
-        throw std::invalid_argument("Graph has already been converted to searchable and cannot be printed.");
-    }
-    
-    print_topological(os, nodes.size() - 1, 0);
-}
-
-template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
-inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_topological(std::ostream& os, size_t_max root, size_t_max depth) {
-    Node node = nodes[root];
-    
-    for (size_t_max i = 0; i < depth; ++i) os << "|  ";
-    os << "+->";
-    
-    os << root << ":\t";
-    node.print(os);
-    os << ":\t";
-    for (size_t_max c = 0; c < node.depth(); ++c) os << NucleotideAtIndex(kMers[node.kmer_index()], K, c);
-    
-    os << std::endl;
-
-    if (root < N) return;
-    
-    /*for (size_t_max i = node.leaf_range_begin; i < node.child_range_end; ++i){
-        if (i == INVALID_NODE()) break;
-        print_topological(os, i, depth + 1);
-    }*/
 }

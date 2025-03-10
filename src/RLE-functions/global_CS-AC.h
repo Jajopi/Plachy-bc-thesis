@@ -10,9 +10,8 @@
 #include "CS-AC_searching.h"
 
 #define RESERVED_MEMORY_GB 5
-#define RESERVED_MEMORY_FRACTION 2 / 8
+#define RESERVED_MEMORY_FRACTION 1 / 8
 #define DEFAULT_PRECISION 100
-// #define DEBUG_FAST_COMPILATION
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
 #ifdef USING_WINDOWS // NOT TESTED
@@ -53,8 +52,6 @@ size_t compute_max_depth(size_t kmer_count){
     
     size_t memory_reserved_per_kmer = storing_memory_per_kmer + std::max(constructing_memory_per_kmer, searching_memory_per_kmer);
     size_t memory_reserved_for_kmers = memory_reserved_per_kmer * kmer_count;
-
-    // std::cerr << "Memory reserved for kmers: " << memory_reserved_for_kmers << " ( " << kmer_count << " )" << std::endl;
     
     if (available_memory < memory_reserved_for_kmers){
         throw std::invalid_argument("Not enough memory for storing the data.");
@@ -63,9 +60,8 @@ size_t compute_max_depth(size_t kmer_count){
     size_t available_memory_for_nodes = (available_memory - memory_reserved_for_kmers);
     size_t available_nodes = (available_memory_for_nodes) / sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>);
     size_t available_depth = available_nodes / kmer_count;
-    // std::cerr << "Available nodes: " << available_nodes << ' ' << sizeof(CS_AC_Node<size_t_max, K_BIT_SIZE>) << std::endl;
 
-    if (available_depth < 2){ // at least top two levels
+    if (available_depth < 3){
         throw std::invalid_argument("Not enough memory for computation.");
     }
     std::cerr << "Maximal available depth: " << available_depth << std::endl;

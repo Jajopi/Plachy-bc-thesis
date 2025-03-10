@@ -2,6 +2,8 @@
 
 set -ueo pipefail
 
+touch results.txt
+
 ARGS="$*"
 
 PROGRAM="G"
@@ -28,7 +30,6 @@ else
         if [[ "$1" == *"-k"* ]]; then
             shift
             K="$1"
-            break
         fi
         if [[ "$1" == *"-c"* ]]; then
             COMPLEMENTS=true

@@ -260,17 +260,12 @@ int main(int argc, char **argv) {
         std::cerr << "Precision has to be at least one.";
         return Help();
     }
-#ifndef DEBUG_FAST_COMPILATION
-    /*if (k < 16){
-        return kmercamel(kmer_dict32_t(), kmer32_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
-    } else */if (k < 32) {
+
+    if (k < 32) {
         return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     } else if (k < 64) {
         return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     } else {
         return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     }
-#else
-    return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
-#endif
 }
