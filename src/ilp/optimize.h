@@ -7,276 +7,191 @@
 #include <vector>
 #include <sstream>
 #include <math.h>
+#include <map>
+#include <set>
+
+#include "../kmers.h"
 
 template <typename kmer_t>
-std::vector<size_t> optimize_indexes_with_complements(const std::vector<kmer_t>& kMers,
-        int (*distance)(const std::vector<kmer_t>&, size_t, size_t, size_t),
-        size_t k, size_t lower_bound){
-    try {
-        // 2 n k-mers + 1 s_0 node = 2n + 1 nodes
-        // each node has its reverse complement on position + n
-        const size_t nn = kMers.size();
-        const size_t n = nn / 2;
+class CycleProhibiter : public GRBCallback
+{
+    size_t K;
+    std::vector<kmer_t> const &kMers;
+    std::vector<std::vector<GRBVar>> const &in_edges, &out_edges;
+    std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> const &in_overlaps, &out_overlaps;
+public:
+    CycleProhibiter(size_t k,
+        std::vector<kmer_t> const &kmers,
+        std::vector<std::vector<GRBVar>> const &in_es,
+        std::vector<std::vector<GRBVar>> const &out_es,
+        std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> const &in_ovs,
+        std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> const &out_ovs) :
+            K(k), kMers(kmers),
+            in_edges(in_es), out_edges(out_es),
+            in_overlaps(in_ovs), out_overlaps(out_ovs) {};
+protected:
+    void callback() {
+        try {
+            size_t N = in_edges.size();
 
-        // Creating model
+            size_t starting_index = 0;
+            for (size_t i = 0; i < N; ++i){
+                if (in_edges[i][0].get(GRB_DoubleAttr_X) == 1){
+                    starting_index = i;
+                    break;
+                }
+            }
+
+            std::set<size_t> visited;
+            std::vector<std::pair<size_t, size_t>> path; // index, depth
+
+            size_t index = starting_index;
+            while (out_edges[index][0].get(GRB_DoubleAttr_X) != 1){
+                // find outgoing overlap length
+                size_t depth = 0;
+                for (size_t d = 0; d < K; ++d){
+                    if (out_edges[index][d].get(GRB_DoubleAttr_X) == 1){
+                        depth = d;
+                        break;
+                    }
+                }
+                path.emplace_back(index, depth);
+
+                if (visited.find(index) != visited.end()){ // cycle detected, add lazy constraint and exit
+                    size_t path_index = 0;
+                    while (path[path_index].first != index) ++path_index;
+                    
+                    GRBLinExpr cycle;
+                    cycle += in_edges[path[path_index].first][path[path.size() - 1].second];
+                    while (path_index < path.size() - 1){
+                        cycle += out_edges[path[path_index].first][path[path_index].second];
+                        cycle += in_edges[path[path_index + 1].first][path[path_index].second];
+                    }
+                    addLazy(cycle < visited.size());
+                    return;
+                }
+                visited.emplace(index);
+
+                kmer_t next_overlap = BitSuffix(kMers[index], depth);
+
+            }
+
+        } catch (GRBException const & e) {
+            std::cerr << "Error during callback: " << e.getErrorCode() << std::endl << e.getMessage() << std::endl;
+        } catch (std::exception const & e) {
+            std::cerr << "Error during callback:" << e.what() << std::endl;
+        }
+    }
+};
+
+template <typename kmer_t>
+std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
+        size_t K, bool complements = false){
+    try {
+        const size_t N = kMers.size();
+        
+        // Create model
+
         GRBEnv env = GRBEnv();
         GRBModel model = GRBModel(env);
 
-        // Setting model parameters
-        model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_OFF); // seems to not help in this case
-        model.set(GRB_IntParam_Method, GRB_METHOD_BARRIER); // consumes less memory than concurent, barrier seems to be the best algortihm for this case
-        //model.set(GRB_DoubleParam_MemLimit, MEMORY_LIMIT_GB); // prevents the computer from freezing, maybe?
-        //model.set(GRB_IntParam_Threads, THREAD_COUNT); // less threads use less memory, barrier seems to never use more than one anyway
-        //model.set(GRB_DoubleParam_Heuristics, 0.1);
-        //model.set(GRB_DoubleParam_NoRelHeurTime, lower_bound / 5);
-        model.set(GRB_DoubleParam_BestObjStop, lower_bound - k + 0.1);
-        model.set(GRB_IntParam_MIPFocus, 1);
+        // Set variables and constraints
 
-        // Edge variables
-        GRBVar** edges = new GRBVar*[nn + 1];
-        for (size_t i = 0; i < nn + 1; i++){
-            edges[i] = new GRBVar[nn + 1];
-            for (size_t j = 0; j < nn + 1; j++){
-                if ((i < n ? i : i - n) == (j < n ? j : j - n)) continue;
+        std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> in_overlaps; // kmer prefix / suffix , depth
+        std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> out_overlaps;
 
-                std::string name = "Edge_" + std::to_string(i) + "_" + std::to_string(j);
-                if (i == nn || j == nn)
-                    edges[i][j] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
-                else
-                    edges[i][j] = model.addVar(0.0, 1.0, distance(kMers, k, i, j), GRB_BINARY, name);
-            }
-        }
-        // Edge constraints
-        // Outdegrees and Indegrees, first half also with complements
-        for (size_t i = 0; i < nn + 1; i++){
-            GRBLinExpr outdegree = 0;
+        GRBLinExpr starting, ending;
+
+        std::vector<std::vector<GRBVar>> in_edges(N);
+        for (size_t i = 0; i < N; ++i){
+            kmer_t kmer = kMers[i];
+            
             GRBLinExpr indegree = 0;
-            GRBLinExpr complementOutdegree = 0;
-            GRBLinExpr complementIndegree = 0;
-            for (size_t j = 0; j < nn + 1; j++){
-                if ((i < n ? i : i - n) == (j < n ? j : j - n)) continue;
+            
+            in_edges[i].resize(K);
+            for (size_t depth = 0; depth < K; ++depth){
+                in_edges[i][depth] = model.addVar(0, 1, 0, GRB_BINARY);
 
-                outdegree += edges[i][j];
-                indegree += edges[j][i];
-                if (i < n){
-                    complementOutdegree += edges[i + n][j];
-                    complementIndegree += edges[j][i + n];
+                indegree += in_edges[i][depth];
+
+                auto key = std::make_tuple(BitPrefix(kmer, K, depth), depth);
+                if (out_overlaps.find(key) == out_overlaps.end()){
+                    out_overlaps[key] = GRBLinExpr();
                 }
-                
+                out_overlaps[key] += in_edges[i][depth];
+
+                if (depth == 0) starting += in_edges[i][depth];
             }
-            std::string name;
-            /*name = "OutDegree_" + std::to_string(i);
-            model.addConstr(outdegree <= 1.0, name);*/
-
-            /*name = "InDegree_" + std::to_string(i);
-            model.addConstr(indegree <= 1.0, name);*/
-
-            name = "InOutSameComplement_" + std::to_string(i);
-            model.addConstr(outdegree - indegree == 0.0, name);
-
-            if (i < n || i == nn){
-                name = "TotalOutDegree_" + std::to_string(i);
-                model.addConstr(outdegree + complementOutdegree == 1.0, name);
-
-                name = "TotalInDegree_" + std::to_string(i);
-                model.addConstr(indegree + complementIndegree == 1.0, name);
-            }
+            model.addConstr(indegree == 1.0);
         }
-        /*// In-degrees of j, first half also with complements
-        for (size_t j = 0; j < nn + 1; j++){
-            GRBLinExpr indegree = 0;
-            GRBLinExpr complementIndegree = 0;
-            for (size_t i = 0; i < nn + 1; i++){
-                if ((i < n ? i : i - n) == (j < n ? j : j - n)) continue;
+        std::vector<std::vector<GRBVar>> out_edges(N);
+        for (size_t i = 0; i < N; ++i){
+            kmer_t kmer = kMers[i];
 
-                indegree += edges[i][j];
-                if (i != nn && j < n) complementIndegree += edges[i][j + n];
+            GRBLinExpr outdegree = 0;
+
+            out_edges[i].resize(K);
+            for (size_t depth = 0; depth < K; ++depth){
+                out_edges[i][depth] = model.addVar(0, 1, K - depth, GRB_BINARY);
+
+                outdegree += out_edges[i][depth];
+
+                auto key = std::make_tuple(BitSuffix(kmer, depth), depth);
+                if (in_overlaps.find(key) == in_overlaps.end()){
+                    in_overlaps[key] = GRBLinExpr();
+                }
+                in_overlaps[key] += out_edges[i][depth];
+
+                if (depth == 0) ending += out_edges[i][depth];
             }
-            std::string name = "InDegree_" + std::to_string(j);
-            model.addConstr(indegree <= 1.0, name);
-
-            if (j < n){
-                name = "TotalInDegree_" + std::to_string(j);
-                model.addConstr(indegree + complementIndegree == 1.0, name);
-            }
-        }*/
-        
-        // Index variables (u)
-        GRBVar* indexes = new GRBVar[n + 1];
-        for (size_t i = 0; i < n + 1; i++){
-            std::string name = "Index_" + std::to_string(i);
-            indexes[i] = model.addVar(0.0, n, 0.0, GRB_INTEGER, name);
-        }
-        // Index constraints
-        // Indexes ascend
-        for (size_t i = 0; i < n; i++){
-            for (size_t j = 0; j < n; j++){
-                if (i == j) continue;
-
-                GRBLinExpr difference = indexes[i] - indexes[j] +
-                                        1 - n + n * (
-                                            edges[i][j] + edges[i + n][j + n] +
-                                            edges[i + n][j] + edges[i][j + n]);
-                std::string name = "IndexDiff_" + std::to_string(i) + "_" + std::to_string(j);
-                model.addConstr(difference <= 0.0, name);
-            }
-
-            GRBLinExpr difference = indexes[i] - indexes[n] +
-                1 - n + n * (edges[i][nn] + edges[i + n][nn]);
-            std::string name = "IndexDiff_" + std::to_string(i) + "_" + std::to_string(nn);
-            model.addConstr(difference <= 0.0, name);
+            model.addConstr(outdegree == 1);
         }
 
+        model.addConstr(starting == 1);
+        model.addConstr(ending == 1);
+
+        for (const auto &overlap : in_overlaps){
+            if (out_overlaps.find(overlap.first) == out_overlaps.end()){
+                model.addConstr(overlap.second == 0);
+            }
+            else {
+                const auto& opp_overlap = out_overlaps.find(overlap.first);
+                model.addConstr(overlap.second == opp_overlap->second);
+            }
+        }
+        for (const auto &overlap : out_overlaps){
+            if (in_overlaps.find(overlap.first) == in_overlaps.end()){
+                model.addConstr(overlap.second == 0);
+            }
+            // else option has already been added
+        }
+
+        // Set callback
+
+        CycleProhibiter<kmer_t> cb = CycleProhibiter<kmer_t>(
+            kMers, in_edges, out_edges, in_overlaps, out_overlaps);
+        model.setCallback(&cb);
 
         // Run optimization
-        model.optimize();
-
-
-        // Get results
-        std::vector<size_t> optimized_indexes(n);
-        for (size_t i = 0; i < n; i++){
-            optimized_indexes[round(indexes[i].get(GRB_DoubleAttr_X))] = i;
-        }
-
-        for (size_t i = 1; i < n; i++){
-            size_t edge_begin = optimized_indexes[i - 1];
-            size_t edge_end = optimized_indexes[i];
-            //std::cout << edge_begin << " " << edge_end << ": ";
-            //std::cout << edges[edge_begin][edge_end].get(GRB_DoubleAttr_X) << " " <<
-            //    edges[edge_begin][edge_end + n].get(GRB_DoubleAttr_X) << ", ";
-            //std::cout << edges[edge_begin + n][edge_end].get(GRB_DoubleAttr_X) << " " <<
-            //    edges[edge_begin + n][edge_end + n].get(GRB_DoubleAttr_X) << ": ";
-            if (edges[edge_begin][edge_end].get(GRB_DoubleAttr_X) +
-                edges[edge_begin][edge_end + n].get(GRB_DoubleAttr_X) == 0){
-                    optimized_indexes[i - 1] += n;
-                    //std::cout << "R" << std::endl;
-                }
-            //else std::cout << "N" << std::endl;
-        }
-        size_t edge_begin = optimized_indexes[n - 2];
-        if (edge_begin > n) edge_begin -= n;
-        size_t edge_end = optimized_indexes[n - 1];
-        if (edges[edge_begin][edge_end].get(GRB_DoubleAttr_X) +
-            edges[edge_begin + n][edge_end].get(GRB_DoubleAttr_X) == 0){
-                optimized_indexes[n - 1] += n;
-        }
-        
-
-        // Free memory from edges
-        for (size_t i = 0; i < n + 1; ++i){
-            delete [] edges[i];
-        }
-        delete [] edges;
-        
-        // Free memory from indexes
-        delete [] indexes;
-
-        return optimized_indexes;
-    }
-    catch(GRBException e){
-        std::cout << e.getErrorCode() << std::endl << e.getMessage() << std::endl;
-        return std::vector<size_t>();
-    }
-}
-
-
-template <typename kmer_t>
-std::vector<size_t> optimize_indexes(const std::vector<kmer_t>& kMers,
-        int (*distance)(const std::vector<kmer_t>&, size_t, size_t, size_t),
-        size_t k, bool complements = false, size_t lower_bound = 0){
-    if (complements){
-        return optimize_indexes_with_complements(kMers, distance, k, lower_bound);
-    }
-    try {
-        // n k-mers + 1 s_0 node = n + 1 nodes
-        const size_t n = kMers.size();
-
-        // Creating model
-        GRBEnv env = GRBEnv();
-        GRBModel model = GRBModel(env);
-
-        // Setting model parameters
-        model.set(GRB_IntParam_Presolve, GRB_PRESOLVE_OFF); // seems to not help in this case
-        model.set(GRB_IntParam_Method, GRB_METHOD_BARRIER); // consumes less memory than concurent, barrier seems to be the best algortihm for this case
-        //model.set(GRB_DoubleParam_MemLimit, MEMORY_LIMIT_GB); // prevents the computer from freezing, maybe?
-        //model.set(GRB_IntParam_Threads, THREAD_COUNT); // less threads use less memory, barrier seems to never use more than one anyway
-
-        // Edge variables
-        GRBVar** edges = new GRBVar*[n + 1];
-        for (size_t i = 0; i < n + 1; i++){
-            edges[i] = new GRBVar[n + 1];
-            for (size_t j = 0; j < n + 1; j++){
-                if (i == j) continue;
-
-                std::string name = "Edge_" + std::to_string(i) + "_" + std::to_string(j);
-                if (i == n || j == n)
-                    edges[i][j] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, name);
-                else
-                    edges[i][j] = model.addVar(0.0, 1.0, distance(kMers, k, i, j), GRB_BINARY, name);
-            }
-        }
-        // Edge constraints
-        // Out-degrees of i
-        for (size_t i = 0; i < n + 1; i++){
-            GRBLinExpr outdegree = 0;
-            for (size_t j = 0; j < n + 1; j++){
-                if (i == j) continue;
-
-                outdegree += edges[i][j];
-            }
-            std::string name = "OutDegree_" + std::to_string(i);
-            model.addConstr(outdegree == 1.0, name);
-        }
-        // In-degrees of j
-        for (size_t j = 0; j < n + 1; j++){
-            GRBLinExpr indegree = 0;
-            for (size_t i = 0; i < n + 1; i++){
-                if (i == j) continue;
-
-                indegree += edges[i][j];
-            }
-            std::string name = "InDegree_" + std::to_string(j);
-            model.addConstr(indegree == 1.0, name);
-        }
-        
-        // Index variables (u)
-        GRBVar* indexes = new GRBVar[n + 1];
-        for (size_t i = 0; i < n + 1; i++){
-            std::string name = "Index_" + std::to_string(i);
-            indexes[i] = model.addVar(0.0, n, 0.0, GRB_INTEGER, name);
-        }
-        // Index constraints
-        // Indexes ascend
-        for (size_t i = 0; i < n; i++){
-            for (size_t j = 0; j < n + 1; j++){
-                if (i == j) continue;
-
-                GRBLinExpr difference = indexes[i] - indexes[j] + 1 - n + (n * edges[i][j]);
-                std::string name = "IndexDiff_" + std::to_string(i) + "_" + std::to_string(j);
-                model.addConstr(difference <= 0.0, name);
-            }
-        }
-
-        // Free memory from edges
-        for (size_t i = 0; i < n + 1; ++i){
-            delete [] edges[i];
-        }
-        delete [] edges;
 
         model.optimize();
 
-        std::vector<size_t> optimized_indexes(n);
-        for (size_t i = 0; i < n; i++){
-            optimized_indexes[round(indexes[i].get(GRB_DoubleAttr_X))] = i;
-        }
-        
-        // Free memory from indexes
-        delete [] indexes;
+        // Reconstruct the path
 
-        return optimized_indexes;
+        // ...
+
+        // std::vector<size_t> optimized_indexes(n);
+        // for (size_t i = 0; i < n; i++){
+        //     optimized_indexes[round(indexes[i].get(GRB_DoubleAttr_X))] = i;
+        // }
+
+        // return optimized_indexes;
     }
-    catch(GRBException e){
-        std::cout << e.getErrorCode() << std::endl << e.getMessage() << std::endl;
-        return std::vector<size_t>();
+    catch(GRBException const & e){
+        std::cerr << "Error during optimization:" << e.getErrorCode() << std::endl << e.getMessage() << std::endl;
     }
+    catch(std::exception const & e){
+        std::cerr << "Error during optimization:" << e.what() << std::endl;
+    }
+    return std::vector<size_t>();
 }

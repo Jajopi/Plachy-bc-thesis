@@ -16,25 +16,25 @@
 #include "distance_functions.h"
 
 template <typename kmer_t>
-void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements, size_t lower_bound = 0) {
+void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
     if (kMers.empty()) {
 		throw std::invalid_argument("input cannot be empty");
 	}
     
     // Add complementary k-mers.
-    size_t n = kMers.size();
-    kMers.resize(n * (1 + complements));
+    size_t N = kMers.size();
     if (complements){
-        for (size_t i = 0; i < n; ++i) {
-            kMers[i + n] = ReverseComplement(kMers[i], k);
+        kMers.resize(N * 2);
+        for (size_t i = 0; i < N; ++i) {
+            kMers[i + N] = ReverseComplement(kMers[i], k);
         }
     }
 
-    std::vector<size_t> indexes = optimize_indexes(kMers, trivial_distance, k, complements, lower_bound);
+    std::vector<size_t> indexes = compute_indexes(kMers, k, complements);
 
-    size_t total_length = decode_and_print_indexes(kMers, indexes, os, k);
-    os << std::endl;
+    // size_t total_length = decode_and_print_indexes(kMers, indexes, os, k);
+    // os << std::endl;
     
-    std::cout << total_length << " / " << kMers.size() * k / (complements ? 2 : 1) << std::endl;
+    // std::cout << total_length << " / " << kMers.size() * k / (complements ? 2 : 1) << std::endl;
 }
 
