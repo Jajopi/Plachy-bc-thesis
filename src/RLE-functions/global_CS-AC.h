@@ -11,7 +11,7 @@
 
 #define RESERVED_MEMORY_GB 5
 #define RESERVED_MEMORY_FRACTION 2 / 8
-#define DEFAULT_PRECISION 18
+#define DEFAULT_PRECISION 100
 // #define DEBUG_FAST_COMPILATION
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
@@ -23,7 +23,7 @@
         GlobalMemoryStatusEx(&status);
         return status.ullTotalPhys;
     }
-#else // NOT TESTED EITHER except for my own computer
+#else
     #include <unistd.h>
     size_t getTotalSystemMemory(){
         size_t pages = sysconf(_SC_PHYS_PAGES);
