@@ -258,10 +258,19 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::convert_to_searchabl
         throw std::invalid_argument("Graph has already been converted to searchable.");
     }
 
+    std::vector<std::pair<kmer_t, size_t_max>> complements;
+    if (COMPLEMENTS){
+        complements.resize(N);
+        for (size_t_max i = 0; i < N; ++i){
+            complements[i] = std::make_pair(ReverseComplement(kMers[i], K), i);
+        }
+        std::sort(complements.begin(), complements.end());
+    }
+
     for (size_t_max i = 0; i < N; ++i){ // Convert leaves
         Node& node = nodes[i];
         node.reset_bitmask_and_next();
-        if (COMPLEMENTS) node.complement_index = find_complement_kmer_index(node.kmer_index());
+        if (COMPLEMENTS) node.complement_index = complements[i].second;
         else node.complement_index = INVALID_LEAF(); // Let that crash if used somewhere
     }
 
