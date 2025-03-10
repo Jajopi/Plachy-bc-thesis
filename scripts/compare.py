@@ -27,8 +27,7 @@ def run_with_parameters(input_name, algorithm, k, complements=False):
                  "-p", INPUT_DIR + "/" + input_name,
                  "-k", str(k),
                  "-a", algorithm,
-                 "--precision 100" if algorithm == ALG_NEW else "",
-                 "-c" if complements else ""
+                 "-c" if complements else "  "
                 ])
 
 def load_all_inputs(file_name):
