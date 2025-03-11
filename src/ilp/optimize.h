@@ -18,64 +18,113 @@ class CycleProhibiter : public GRBCallback
     size_t K;
     std::vector<kmer_t> const &kMers;
     std::vector<std::vector<GRBVar>> const &in_edges, &out_edges;
+    std::vector<GRBVar> const &starting, &ending;
     std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> const &in_overlaps, &out_overlaps;
 public:
     CycleProhibiter(size_t k,
         std::vector<kmer_t> const &kmers,
         std::vector<std::vector<GRBVar>> const &in_es,
         std::vector<std::vector<GRBVar>> const &out_es,
+        std::vector<GRBVar> const &start,
+        std::vector<GRBVar> const &end,
         std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> const &in_ovs,
         std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> const &out_ovs) :
             K(k), kMers(kmers),
             in_edges(in_es), out_edges(out_es),
+            starting(start), ending(end),
             in_overlaps(in_ovs), out_overlaps(out_ovs) {};
 protected:
     void callback() {
         try {
+            if (where != GRB_CB_MIPSOL) return;
+            
             size_t N = in_edges.size();
 
-            size_t starting_index = 0;
-            for (size_t i = 0; i < N; ++i){
-                if (in_edges[i][0].get(GRB_DoubleAttr_X) == 1){
-                    starting_index = i;
-                    break;
+            std::vector<bool> visited(N, false);
+
+            // Set begin-end path as visited
+            for (size_t starting_index = 0; starting_index < N; ++starting_index){
+                if (getSolution(starting[starting_index]) != 1) continue;
+                
+                size_t index = starting_index, length = 0;
+                while (getSolution(ending[index]) != 1){
+                    // Find outgoing overlap length
+                    size_t depth = 0;
+                    for (size_t d = 0; d < K; ++d){
+                        if (getSolution(out_edges[index][d]) == 1){
+                            depth = d;
+                            break;
+                        }
+                    }
+                    visited[index] = true;
+                    ++length;
+
+                    kmer_t next_overlap = BitSuffix(kMers[index], depth);
+                    for (size_t i = 0; i < N; ++i){
+                        if (BitPrefix(kMers[i], K, depth) == next_overlap &&
+                                getSolution(in_edges[i][depth]) == 1){
+                            index = i;
+                            if (!visited[index]) break;
+                        }
+                    }
                 }
+                std::cerr << "Found path of length " << length << std::endl;
+                break; // Only one this path exists
             }
 
-            std::set<size_t> visited;
-            std::vector<std::pair<size_t, size_t>> path; // index, depth
+            // Find all cycles and add constraints
+            for (size_t starting_index = 0; starting_index < N; ++starting_index){
+                if (visited[starting_index]) continue;
 
-            size_t index = starting_index;
-            while (out_edges[index][0].get(GRB_DoubleAttr_X) != 1){
-                // find outgoing overlap length
-                size_t depth = 0;
-                for (size_t d = 0; d < K; ++d){
-                    if (out_edges[index][d].get(GRB_DoubleAttr_X) == 1){
-                        depth = d;
+                std::vector<std::pair<size_t, size_t>> path; // index, depth
+
+                size_t index = starting_index;
+                while (getSolution(ending[index]) != 1){
+                    // Find outgoing overlap length
+                    size_t depth = 0;
+                    for (size_t d = 0; d < K; ++d){
+                        if (getSolution(out_edges[index][d]) == 1){
+                            depth = d;
+                            break;
+                        }
+                    }
+                    path.emplace_back(index, depth);
+
+                    if (visited[index]){ // Cycle detected, add lazy constraint and exit
+                        size_t path_start = 0;
+                        while (path[path_start].first != index) ++path_start;
+                        
+                        GRBLinExpr cycle = 0;
+                        size_t path_index, length = 0;
+                        
+                        path_index = path_start;
+                        while (path_index < path.size() - 1){
+                            cycle += out_edges[path[path_index].first][path[path_index].second];
+                            cycle += in_edges[path[path_index + 1].first][path[path_index].second];
+                            ++length;
+                            ++path_index;
+                        }
+                        cycle += out_edges[path[path_index].first][path[path_index].second];
+                        cycle += in_edges[path[path_start].first][path[path_index].second];
+                        ++length;
+                        if (length == 1) break;
+
+                        std::cerr << "Adding lazy constraint to cycle of length " << length << std::endl;
+                        addLazy(cycle <= 2 * length - 1);
                         break;
                     }
-                }
-                path.emplace_back(index, depth);
+                    visited[index] = true;
 
-                if (visited.find(index) != visited.end()){ // cycle detected, add lazy constraint and exit
-                    size_t path_index = 0;
-                    while (path[path_index].first != index) ++path_index;
-                    
-                    GRBLinExpr cycle;
-                    cycle += in_edges[path[path_index].first][path[path.size() - 1].second];
-                    while (path_index < path.size() - 1){
-                        cycle += out_edges[path[path_index].first][path[path_index].second];
-                        cycle += in_edges[path[path_index + 1].first][path[path_index].second];
+                    kmer_t next_overlap = BitSuffix(kMers[index], depth);
+                    for (size_t i = 0; i < N; ++i){
+                        if (BitPrefix(kMers[i], K, depth) == next_overlap &&
+                                getSolution(in_edges[i][depth]) == 1){
+                            index = i;
+                            if (!visited[index]) break;
+                        }
                     }
-                    addLazy(cycle < visited.size());
-                    return;
                 }
-                visited.emplace(index);
-
-                kmer_t next_overlap = BitSuffix(kMers[index], depth);
-
             }
-
         } catch (GRBException const & e) {
             std::cerr << "Error during callback: " << e.getErrorCode() << std::endl << e.getMessage() << std::endl;
         } catch (std::exception const & e) {
@@ -90,46 +139,49 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
     try {
         const size_t N = kMers.size();
         
-        // Create model
+        // Create model and set parameters
 
         GRBEnv env = GRBEnv();
         GRBModel model = GRBModel(env);
+        model.set(GRB_IntParam_LazyConstraints, 1);
 
         // Set variables and constraints
 
         std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> in_overlaps; // kmer prefix / suffix , depth
         std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> out_overlaps;
-
-        GRBLinExpr starting, ending;
+        
+        std::vector<GRBVar> starting(N), ending(N);
+        GRBLinExpr start_sum, end_sum;
 
         std::vector<std::vector<GRBVar>> in_edges(N);
+        std::vector<std::vector<GRBVar>> out_edges(N);
         for (size_t i = 0; i < N; ++i){
             kmer_t kmer = kMers[i];
             
             GRBLinExpr indegree = 0;
-            
             in_edges[i].resize(K);
             for (size_t depth = 0; depth < K; ++depth){
                 in_edges[i][depth] = model.addVar(0, 1, 0, GRB_BINARY);
-
+                
                 indegree += in_edges[i][depth];
-
+                
                 auto key = std::make_tuple(BitPrefix(kmer, K, depth), depth);
                 if (out_overlaps.find(key) == out_overlaps.end()){
                     out_overlaps[key] = GRBLinExpr();
                 }
                 out_overlaps[key] += in_edges[i][depth];
-
-                if (depth == 0) starting += in_edges[i][depth];
+                
+                if (depth == 0){
+                    starting[i] = model.addVar(0, 1, 0, GRB_BINARY);
+                    start_sum += starting[i];
+                    
+                    GRBLinExpr start_or_in = starting[i] + in_edges[i][0];
+                    model.addConstr(start_or_in <= 1);
+                }
             }
             model.addConstr(indegree == 1.0);
-        }
-        std::vector<std::vector<GRBVar>> out_edges(N);
-        for (size_t i = 0; i < N; ++i){
-            kmer_t kmer = kMers[i];
-
+            
             GRBLinExpr outdegree = 0;
-
             out_edges[i].resize(K);
             for (size_t depth = 0; depth < K; ++depth){
                 out_edges[i][depth] = model.addVar(0, 1, K - depth, GRB_BINARY);
@@ -142,13 +194,26 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
                 }
                 in_overlaps[key] += out_edges[i][depth];
 
-                if (depth == 0) ending += out_edges[i][depth];
+                if (depth == 0){
+                    ending[i] = model.addVar(0, 1, 0, GRB_BINARY);
+                    end_sum += ending[i];
+                    
+                    GRBLinExpr end_or_out = ending[i] + out_edges[i][0];
+                    model.addConstr(end_or_out <= 1);
+                }
             }
             model.addConstr(outdegree == 1);
+
+            /*for (size_t d = 1; d < K; ++d){
+                if (BitPrefix(kmer, K, d) == BitSuffix(kmer, d)){
+                    GRBLinExpr self_loop = in_edges[i][d] + out_edges[i][d]
+                    model.addConstr
+                }
+            }*/
         }
 
-        model.addConstr(starting == 1);
-        model.addConstr(ending == 1);
+        model.addConstr(start_sum == 1);
+        model.addConstr(end_sum == 1);
 
         for (const auto &overlap : in_overlaps){
             if (out_overlaps.find(overlap.first) == out_overlaps.end()){
@@ -169,7 +234,7 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
         // Set callback
 
         CycleProhibiter<kmer_t> cb = CycleProhibiter<kmer_t>(
-            kMers, in_edges, out_edges, in_overlaps, out_overlaps);
+            K, kMers, in_edges, out_edges, starting, ending, in_overlaps, out_overlaps);
         model.setCallback(&cb);
 
         // Run optimization
