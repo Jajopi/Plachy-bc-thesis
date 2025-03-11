@@ -29,10 +29,10 @@ def plot():
 
                 d = results[(alg, inp, k, complements)]
                 ys.append(
-                    2 + math.log2(d[LABELS[0]] / d[LABELS[1]])
+                    3 + math.log2(d[LABELS[0]] / d[LABELS[1]])
                 )
                 yys.append(
-                    math.log2(d[LABELS[0]]) / (2 + math.log2(d[LABELS[0]] / d[LABELS[1]]))
+                    math.log2(d[LABELS[0]]) / (3 + math.log2(d[LABELS[0]] / d[LABELS[1]]))
                 )
 
             sns.lineplot(y=ys, x=xs, ax=axs[0][1 if complements else 0],

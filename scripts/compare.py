@@ -54,7 +54,8 @@ def parse_header(header):
         return (alg, inp, k, c)
 
 def compute_objective(length, runs):
-        return int(length + runs * math.log2(length))
+    return int(length + runs * math.log2(length)) # TODO switch from RLE to EF penalty
+    # return int(length + runs * (3 + math.log2(length / runs)))
 
 def parse_data(input):
     data = dict()
