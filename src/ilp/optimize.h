@@ -174,9 +174,8 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
                 if (depth == 0){
                     starting[i] = model.addVar(0, 1, 0, GRB_BINARY);
                     start_sum += starting[i];
-                    
-                    GRBLinExpr start_or_in = starting[i] + in_edges[i][0];
-                    model.addConstr(start_or_in <= 1);
+
+                    indegree += starting[i];
                 }
             }
             model.addConstr(indegree == 1.0);
@@ -198,8 +197,7 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
                     ending[i] = model.addVar(0, 1, 0, GRB_BINARY);
                     end_sum += ending[i];
                     
-                    GRBLinExpr end_or_out = ending[i] + out_edges[i][0];
-                    model.addConstr(end_or_out <= 1);
+                    outdegree += ending[i];
                 }
             }
             model.addConstr(outdegree == 1);
