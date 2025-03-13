@@ -32,8 +32,7 @@ void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool comp
 
     std::vector<size_t> indexes = compute_indexes(kMers, k, complements);
 
-    std::cerr << indexes.size() << std::endl;
-
+    os << ">superstring k=" << k << std::endl;
     size_t total_length = decode_and_print_indexes(kMers, indexes, os, k);
     
     std::cerr << total_length << " / " << kMers.size() * k / (complements ? 2 : 1) << std::endl;

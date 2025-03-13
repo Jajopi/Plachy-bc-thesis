@@ -191,7 +191,7 @@ size_t_max decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std:
     
     total_length += k;
 
-    os << std::endl;
+    std::cerr << std::endl;
     std::cerr << "Total length: " << total_length << std::endl;
     std::cerr << "Run count: " << run_count << std::endl;
 
