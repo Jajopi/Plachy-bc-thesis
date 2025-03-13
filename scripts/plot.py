@@ -22,7 +22,7 @@ def plot_all():
         for alg in ALGORITHMS:
             for complements in (False, True):
                 ys, xs = [list() for label in LABELS], []
-                for k in KS[1:]: # exclude k = 15
+                for k in KS:
                     if not (alg, inp, k, complements) in results.keys(): continue
                     empty = False
 

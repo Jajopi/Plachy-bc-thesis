@@ -11,7 +11,7 @@ FIG_DIR = "figures"
 
 RECOMPUTE_ALL = False
 
-KS = [15, 23, 31, 47, 63, 95, 127]
+KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
 ALG_OLD, ALG_NEW = "global", "csac"
 ALGORITHMS = [ALG_OLD, ALG_NEW]
 

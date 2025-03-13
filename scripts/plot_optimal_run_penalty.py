@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-LAST_PENALTY_TYPE = "log2(N)"
+LAST_PENALTY_TYPE = "log2(N)/2.5"
 
 def plot():
     plt.rcParams["font.family"] = "serif"
