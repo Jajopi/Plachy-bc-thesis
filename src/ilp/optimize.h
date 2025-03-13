@@ -1,5 +1,5 @@
 
-#define GUROBI_DIR "/opt/gurobi1103/linux64/include/gurobi_c++.h"
+#define GUROBI_DIR "./gurobi/gurobi_c++.h"
 #define MEMORY_LIMIT_GB 16
 #define THREAD_COUNT 1
 
