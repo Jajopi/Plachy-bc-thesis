@@ -6,28 +6,29 @@
 
 #include "../kmers.h"
 
-#include "CS-AC_construction.h"
-#include "CS-AC_searching.h"
+#include "csac_construction.h"
+#include "csac_searching.h"
 
 #define RESERVED_MEMORY_GB 5
 #define RESERVED_MEMORY_FRACTION 1 / 8
 #define DEFAULT_PRECISION 100
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
-#ifdef USING_WINDOWS // NOT TESTED
+#ifdef __unix__
+    #include <unistd.h>
+    size_t getTotalSystemMemory(){
+        size_t pages = sysconf(_SC_PHYS_PAGES);
+        size_t page_size = sysconf(_SC_PAGE_SIZE);
+        return pages * page_size;
+    }
+#endif
+#ifdef _WIN32 // NOT TESTED, should also work with 64-bit
     #include <windows.h>
     size_t getTotalSystemMemory(){
         MEMORYSTATUSEX status;
         status.dwLength = sizeof(status);
         GlobalMemoryStatusEx(&status);
         return status.ullTotalPhys;
-    }
-#else
-    #include <unistd.h>
-    size_t getTotalSystemMemory(){
-        size_t pages = sysconf(_SC_PHYS_PAGES);
-        size_t page_size = sysconf(_SC_PAGE_SIZE);
-        return pages * page_size;
     }
 #endif
 

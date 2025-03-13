@@ -8,7 +8,7 @@
 #include <random>
 
 #include "../kmers.h"
-#include "CS-AC_construction.h"
+#include "csac_construction.h"
 
 #define MAX_COUNT_WIDTH 12
 #define MAX_ITERS_WIDTH 3

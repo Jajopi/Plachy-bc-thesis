@@ -14,7 +14,7 @@
 #include "khash_utils.h"
 
 #include "ilp/global_ilp.h"
-#include "RLE-functions/global_CS-AC.h"
+#include "csac/global_csac.h"
 
 #include <iostream>
 #include <string>
@@ -71,8 +71,8 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
 
     /* Handle streaming algorithm separately. */
     if (algorithm == "streaming") {
-        /*WriteName(k, *of);
-        Streaming(path, *of,  k , complements);*/
+        WriteName(k, *of);
+        Streaming(path, *of,  k , complements);
     }
     /* Handle hash table based algorithms separately so that they consume less memory. */
     else if (algorithm == "global" || algorithm == "local") {
@@ -94,18 +94,12 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
             else Global(wrapper, kMerVec, *of, k, complements);
         }
         else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
-    } else if (algorithm == "ILP" || algorithm == "ilp") {
+    } else if (algorithm == "ilp") {
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
         
         GlobalILP(kMerVec, *of, k, complements);
-    } else if (algorithm == "hog") {
-        /*auto *kMers = wrapper.kh_init_set();
-        ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
-        std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
-
-        GlobalHOG(kMerVec, *of, k, complements);*/
     } else if (algorithm == "csac"){
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
@@ -114,7 +108,7 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
 
         GlobalCS_AC(kMerVec, *of, k, complements, run_penalty, precision);
     } else {
-        /*auto data = ReadFasta(path);
+        auto data = ReadFasta(path);
         if (data.empty()) {
             std::cerr << "Path '" << path << "' not to a fasta file." << std::endl;
             return Help();
@@ -132,7 +126,7 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         else {
             std::cerr << "Algorithm '" << algorithm << "' not supported." << std::endl;
             return Help();
-        }*/
+        }
     }
     *of << std::endl;
     return 0;
