@@ -21,6 +21,7 @@ class PathFinder : public GRBCallback
     std::vector<GRBVar> const &starting, &ending;
     std::map<std::tuple<kmer_t, size_t>, GRBLinExpr> const &in_overlaps, &out_overlaps;
 public:
+    using Node = std::pair<kmer_t, size_t>;
     PathFinder(size_t k,
         std::vector<kmer_t> const &kmers,
         std::vector<std::vector<GRBVar>> const &in_es,
@@ -146,7 +147,9 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
 
         // Reconstruct the path
 
-        return pathfinder.get_path();
+        std::vector<size_t> ans = pathfinder.get_path();
+        std::cerr << ans.size() << std::endl;
+        return ans;
     }
     catch(GRBException const & e){
         std::cerr << "Error during optimization:" << e.getErrorCode() << ' ' << e.getMessage() << std::endl;
@@ -159,119 +162,112 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
 
 template <typename kmer_t>
 inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
-    using Node = std::pair<kmer_t, size_t>;
     try {
         size_t N = in_edges.size();
 
         // Find euler walk in connected graph
 
-        std::map<Node, std::pair<std::vector<Node>, size_t>> edges;
-        // kmer, depth: edges (kmer, depth), firsst unused edge 
-
-        std::map<Node, size_t> next(N), previous(N, N);
+        std::map<Node, std::pair<std::vector<std::pair<Node, size_t>>, size_t>> edges;
+        // (kmer, depth): edges ((kmer, depth), kmer index), first unused edge
         std::vector<Node> reached;
         reached.reserve(N);
 
+        std::vector<size_t> next(N), previous(N);
         size_t start_index = N, end_index = N;
+        Node start_node, end_node;
 
         // Construct the graph
         for (size_t i = 0; i < N; ++i){
             if (starting[i].get(GRB_DoubleAttr_X) == 1) start_index = i;
             if (ending[i].get(GRB_DoubleAttr_X) == 1){
                 end_index = i;
+                for (size_t d = 0; d < K; ++d){
+                    if (in_edges[i][d].get(GRB_DoubleAttr_X) != 1) continue;
+
+                    end_node = Node(BitPrefix(kMers[i], K, d), d);
+                    // edges[Node(BitPrefix(kMers[i], K, d), d)].first.emplace_back(Node(0, 0), i);
+                    break;
+                }
                 continue;
             }
 
             for (size_t depth = 0; depth < K; ++depth){
                 if (out_edges[i][depth].get(GRB_DoubleAttr_X) != 1) continue;
                 Node out_node = Node(BitSuffix(kMers[i], depth), depth);
+                if (i == start_index){
+                    start_node = out_node;
+                    break; // Starting kmer cannot join any overlap nodes
+                }
                 
                 for (size_t d = 0; d < K; ++d){
                     if (in_edges[i][d].get(GRB_DoubleAttr_X) != 1) continue;
 
-                    edges[Node(BitPrefix(kMers[i], K, d), d)].first.push_back(out_node);
+                    edges[Node(BitPrefix(kMers[i], K, d), d)].first.emplace_back(out_node, i);
+                    break; // Each kmer has exactly one in-edge
                 }
+                break; // Each kmer has exactly one out-edge
             }
         }
+        edges[end_node].first.emplace_back(Node(0, 0), end_index);
 
-        // Find any walk from start to end
-        size_t index = start_index, last_index = N;
-        while (index != end_index){
-            // std::cerr << "- " << index << ' ';
-            // print_kmer(kMers[index], K, std::cerr, K); std::cerr << std::endl;
-            if (next_edges[index] == 0) reached.push_back(index);
-            if (last_index != N) next[last_index] = index;
+        // Find walk from start to end
+        Node node = start_node;
+        size_t last_index = start_index;
+        while (last_index != end_index){
+            print_kmer(node.first, K, std::cerr, K);
+            std::cerr << ' ' << node.second << std::endl;
+
+            if (edges[node].second == 0) reached.push_back(node);
+
+            auto p = edges[node].first[edges[node].second++];
+            size_t index = p.second;
+
+            next[last_index] = index;
             previous[index] = last_index;
-
+            
             last_index = index;
-            index = edges[next_edges[index]++];
+            node = p.first;
         }
-        reached.push_back(end_index);
-        next[last_index] = end_index;
-        previous[end_index] = last_index;
 
         // Extend the walk wherever possible
         for (size_t i = 0; i < reached.size(); ++i){
-            start_index = reached[i];
-            if (next_edges[index] == edges[index].size()) continue;
-            // std::cerr << "F: " << first_index << ' ';
-            // print_kmer(kMers[first_index], K, std::cerr, K); std::cerr << std::endl;
-            size_t former_next = next[start_index];
+            Node first_node = reached[i];
+            if (edges[first_node].second == edges[first_node].first.size()) continue;
+            --i;
+            std::cerr << "F: ";
+            print_kmer(first_node.first, K, std::cerr, K);
+            std::cerr << ' ' << first_node.second << std::endl;
 
-            index = edges[next_edges[start_index]++];
-            last_index = start_index;
-            while (index != start_index){
-                if (next_edges[index] == 0) reached.push_back(index);
+            size_t next_index = edges[first_node].first[edges[first_node].second].second;
+            size_t last_index = previous[next_index];
+
+            node = first_node;
+            do {
+                print_kmer(node.first, K, std::cerr, K);
+                std::cerr << ' ' << node.second << std::endl;
+                if (edges[node].second == 0) reached.push_back(node);
+
+                auto p = edges[node].first[edges[node].second++];
+                size_t index = p.second;
+    
                 next[last_index] = index;
                 previous[index] = last_index;
-
+    
                 last_index = index;
-                index = edges[next_edges[index]++];
-            }
-            next[last_index] = start_index;
+                node = p.first;
+            } while (node != first_node);
 
-
-            
-            last_index = previous[first_index];
-            while (index != first_index){
-                std::cerr << index << ' ';
-                print_kmer(kMers[index], K, std::cerr, K); std::cerr << std::endl;
-                if (!visited[index]) reached.push_back(index);
-                else break;
-                visited[index] = true;
-                if (last_index != N) next[last_index] = index;
-                previous[index] = last_index;
-                last_index = index;
-
-                depth = 0;
-                for (size_t d = 0; d < K; ++d){
-                    if (out_edges[index][d].get(GRB_DoubleAttr_X) == 1){
-                        depth = d;
-                        break;
-                    }
-                }
-                next_overlap = BitSuffix(kMers[index], depth);
-                for (size_t j = 0; j < N; ++j){
-                    if (BitPrefix(kMers[j], K, depth) == next_overlap &&
-                            in_edges[j][depth].get(GRB_DoubleAttr_X) == 1){
-                        index = j;
-                        if (!visited[j]){
-                            break;
-                        }
-                    }
-                }
-            }
-            next[last_index] = first_index;
-            previous[first_index] = last_index;
-            --i; // Will need to search again
+            previous[next_index] = last_index;
+            next[last_index] = next_index;
         }
         
         std::vector<size_t> indexes(N);
-        size_t actual = starting_index;
+        size_t actual = start_index;
         for (size_t i = 0; i < N; ++i){
             indexes[i] = actual;
             actual = next[actual];
         }
+        std::cerr << indexes.size() << std::endl;
         return indexes;
         
     } catch (GRBException const & e) {
@@ -329,7 +325,7 @@ inline void PathFinder<kmer_t>::callback(){
             }
         }
             
-        std::cerr << "Reachable nodes " << reachable_count << " / " << N << std::endl;
+        std::cerr << "- Callback: reachable nodes " << reachable_count << " / " << N << std::endl;
 
         if (reachable_count == N) return;
 
@@ -354,59 +350,7 @@ inline void PathFinder<kmer_t>::callback(){
         }
 
         addLazy(cycles <= 2 * (N - reachable_count) - 1);
-        
-        /*for (size_t starting_index = 0; starting_index < N; ++starting_index){
-            if (visited[starting_index]) continue; // malo uiverzalni. predelat doporucuji
-            
-            std::vector<std::pair<size_t, size_t>> path; // index, depth
 
-            size_t index = starting_index;
-            while (getSolution(ending[index]) != 1){
-                // Find outgoing overlap length
-                size_t depth = 0;
-                for (size_t d = 0; d < K; ++d){ // d++, v praxi oznacovan jako e
-                    if (getSolution(out_edges[index][d]) == 1){ 
-                        depth = d; // 
-                        break;
-                    }
-                }
-                path.emplace_back(index, depth);
-
-                if (visited[index]){ // Cycle detected, add lazy constraint
-                    size_t path_start = 0;  // hobit
-                    while (path[path_start].first != index) ++path_start; // cesta tam a zase zpatky
-                    
-                    GRBLinExpr cycle = 0;
-                    size_t path_index, length = 0;
-                    
-                    path_index = path_start;
-                    while (path_index < path.size() - 1){
-                        cycle += out_edges[path[path_index].first][path[path_index].second]; 
-                        cycle += in_edges[path[path_index + 1].first][path[path_index].second];
-                        ++length;
-                        ++path_index;
-                    }
-                    cycle += out_edges[path[path_index].first][path[path_index].second];
-                    cycle += in_edges[path[path_start].first][path[path_index].second];
-                    ++length;
-                    if (length == 1) break;
-
-                    std::cerr << "Adding lazy constraint to cycle of length " << length << std::endl;
-                    addLazy(cycle <= 2 * length - 1);
-                    break;
-                }
-                visited[index] = true; // univerzalni radek podruhe // opakuje se, doporucuji smazat
-
-                kmer_t next_overlap = BitSuffix(kMers[index], depth);
-                for (size_t i = 0; i < N; ++i){
-                    if (BitPrefix(kMers[i], K, depth) == next_overlap &&
-                            getSolution(in_edges[i][depth]) == 1){
-                        index = i;
-                        if (!visited[index]) break;
-                    }
-                }
-            }
-        }*/
     } catch (GRBException const & e) {
         std::cerr << "Error during callback: " << e.getErrorCode() << ' ' << e.getMessage() << std::endl;
     } catch (std::exception const & e) {
