@@ -13,7 +13,7 @@
 #include "ac/streaming.h"
 #include "khash_utils.h"
 
-// #include "ilp/global_ilp.h"
+#include "ilp/global_ilp.h"
 #include "RLE-functions/global_CS-AC.h"
 
 #include <iostream>
@@ -95,12 +95,11 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         }
         else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
     } else if (algorithm == "ILP" || algorithm == "ilp") {
-        /*auto *kMers = wrapper.kh_init_set();
+        auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
-        size_t lower_bound = LowerBoundLength(wrapper, kMerVec, k, complements);
         
-        GlobalILP(kMerVec, *of, k, complements, lower_bound);*/
+        GlobalILP(kMerVec, *of, k, complements);
     } else if (algorithm == "hog") {
         /*auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
