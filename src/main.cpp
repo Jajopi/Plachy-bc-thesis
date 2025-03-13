@@ -13,7 +13,10 @@
 #include "ac/streaming.h"
 #include "khash_utils.h"
 
-#include "ilp/global_ilp.h"
+// #define ENABLE_ILP
+#ifdef ENABLE_ILP
+    #include "ilp/global_ilp.h"
+#endif
 #include "csac/global_csac.h"
 
 #include <iostream>
@@ -94,18 +97,18 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
             else Global(wrapper, kMerVec, *of, k, complements);
         }
         else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
+#ifdef ENABLE_ILP
     } else if (algorithm == "ilp") {
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
-        
         GlobalILP(kMerVec, *of, k, complements);
+#endif
     } else if (algorithm == "csac"){
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
         wrapper.kh_destroy_set(kMers);
-
         GlobalCS_AC(kMerVec, *of, k, complements, run_penalty, precision);
     } else {
         auto data = ReadFasta(path);
