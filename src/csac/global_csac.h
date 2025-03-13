@@ -101,7 +101,6 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
 
     os << ">superstring k=" << k << std::endl;
     csac.print_result(os);
-    os << std::endl;
 }
 
 template <typename kmer_t, size_t K_BIT_SIZE>
