@@ -12,3 +12,4 @@ compare_inputs*
 __pycache__
 results.txt
 figures
+.gurobi_lib
