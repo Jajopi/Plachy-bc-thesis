@@ -22,12 +22,13 @@ def run_command(command):
     print(*command)
     subprocess.run(command, text=True, check=True)
 
-def run_with_parameters(input_name, algorithm, k, complements=False):
+def run_with_parameters(input_name, algorithm, k, complements=False, run_penalty=0):
     run_command(["./scripts/measure_run.sh",
                  "-p", INPUT_DIR + "/" + input_name,
                  "-k", str(k),
                  "-a", algorithm,
-                 "-c" if complements else "  "
+                 "-c" if complements else "  ",
+                 f"--run-penalty {run_penalty}" if algorithm == ALG_NEW and run_penalty != 0 else ""
                 ])
 
 def load_all_inputs(file_name):
@@ -96,18 +97,16 @@ def compute_missing():
 
     for inp in load_all_inputs(INPUT_FILE_NAME):
         limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
+        run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else 0
         inp = inp.split()[0]
         for alg in ALGORITHMS:
             for k in KS:
                 if k >= limit: continue
                 for complements in (False, True):
                     if (alg, inp, k, complements) in results.keys():
-                        if not RECOMPUTE_ALL:
-                            continue
-                        if alg != ALG_NEW: # no need to recompute gg
-                            continue
+                        continue
 
-                    run_with_parameters(inp, alg, k, complements)
+                    run_with_parameters(inp, alg, k, complements, run_penalty)
 
 if __name__ == "__main__":
     compute_missing()

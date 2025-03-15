@@ -12,7 +12,6 @@
 #define RESERVED_MEMORY_GB 5
 #define RESERVED_MEMORY_FRACTION 1 / 8
 #define DEFAULT_PRECISION 100
-#define RUN_PENALTY_SCALE 0.4
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
 #ifdef __unix__
@@ -92,7 +91,7 @@ void compute_with_cs_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     csac.construct_graph();
     csac.convert_to_searchable_representation();
 
-    if (run_penalty == 0) run_penalty = log2(kMers.size() * RUN_PENALTY_SCALE);
+    if (run_penalty == 0) run_penalty = log2(kMers.size());
     if (precision == 0) precision = DEFAULT_PRECISION;
     if (precision > sizeof(size_t_max) * 8) precision = sizeof(size_t_max) * 8;
     csac.set_search_parameters(run_penalty, 1, precision);

@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-LAST_PENALTY_TYPE = "log2(N)/2.5"
+PENALTY_SCALE = 2.5
+LAST_PENALTY_TYPE = f"log2N*{1/PENALTY_SCALE}"
 
 def plot():
     plt.rcParams["font.family"] = "serif"
@@ -29,10 +30,10 @@ def plot():
 
                 d = results[(alg, inp, k, complements)]
                 ys.append(
-                    3 + math.log2(d[LABELS[0]] / d[LABELS[1]])
+                    math.log2(d[LABELS[0]] / PENALTY_SCALE)
                 )
                 yys.append(
-                    math.log2(d[LABELS[0]]) / (3 + math.log2(d[LABELS[0]] / d[LABELS[1]]))
+                    math.log2(d[LABELS[0]] / PENALTY_SCALE) / (3 + math.log2(d[LABELS[0]] / d[LABELS[1]]))
                 )
 
             sns.lineplot(y=ys, x=xs, ax=axs[0][1 if complements else 0],
@@ -50,7 +51,9 @@ def plot():
     if os.path.isfile(file_name):
         a = input("\n===================\nOverwrite old file? (y/...) ")
         if a.strip().lower() == "y": fig.savefig(file_name)
-    else: fig.savefig(file_name)
+    else:
+        with open(file_name, "w") as file: pass
+        fig.savefig(file_name)
 
 if __name__ == "__main__":
     # compute_missing()
