@@ -53,8 +53,6 @@ class CuttedSortedAC {
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
 
     std::vector<kmer_t> kMers;  // sorted
-    std::vector<size_t_max> chains;
-    // std::vector<size_t_max> chain_beginnings;
     
     size_t_max K;               // kmer-length
     size_t_max N;               // number of kmers, number of leaves
@@ -109,27 +107,13 @@ public:
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
-    if (!chains.empty()){
-        throw std::invalid_argument("Graph has already been constructed.");
-    }
-
-    chains.reserve(N * DEPTH);
-    // chain_beginnings.resize(N + 1);
-    if (COMPLEMENTS) complements.resize(N);
-
-    for (size_t_max i = 0; i < N; ++i){
-        kmer_t current = kMers[i];
-        // chain_beginnings[i] = chains.size();
-
-        for (size_t_max depth = K - 1; depth > K - 1 - DEPTH; --depth){
-            size_t_max failure_index = find_first_failure_leaf(current, depth);
-            chains.push_back(failure_index);
+    if (COMPLEMENTS){
+        complements.resize(N);
+        
+        for (size_t_max i = 0; i < N; ++i){
+            complements[i] = find_complement_kmer_index(i);
         }
-
-        if (COMPLEMENTS) complements[i] = find_complement_kmer_index(i);
     }
-
-    // chain_beginnings[N] = chains.size();
 }
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>

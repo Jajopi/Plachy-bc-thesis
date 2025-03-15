@@ -44,7 +44,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
         ++priority_drop_limit){
             size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
             LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaf_count
-            << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations--; LOG_STREAM.flush();
+            << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations-- << std::endl; LOG_STREAM.flush();
             
         if (uncompleted_leaf_count < SEARCH_CUTOFF) break;
         
@@ -98,8 +98,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
     // LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
 
     if (priority_drop_limit == 1){
-        size_t_max chain_begin = leaf_to_complete * DEPTH;
-        size_t_max first_failure_leaf = chains[chain_begin];
+        size_t_max first_failure_leaf = find_first_failure_leaf(kMers[leaf_to_complete], K - 1);
 
         if (first_failure_leaf == INVALID_NODE()){
             // LOG_STREAM << std::endl;
@@ -178,7 +177,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         for (size_t_max i = leaf_index; i < N &&
             BitPrefix(kMers[leaf_index], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
             ++i){
-            if (i == leaf_index || i == leaf_to_complete ||
+            if (i == leaf_to_complete ||
                 (COMPLEMENTS && i == leaf_complement)) continue;
 
             if (remaining_priorities[i] >= priority) continue;
@@ -201,12 +200,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::push_failure_of_node
     size_t_max failure_index = INVALID_NODE();
 
     while (failure_depth > 0){
-        if (failure_depth > K - 1 - DEPTH){
-            failure_index = chains[node_index * DEPTH + K - 1 - failure_depth];
-        }
-        else {
-            failure_index = find_first_failure_leaf(kMers[node_index], failure_depth);
-        }
+        failure_index = find_first_failure_leaf(kMers[node_index], failure_depth);
         
         if (failure_index != INVALID_NODE()) break;
         --failure_depth;

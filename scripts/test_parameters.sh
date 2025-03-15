@@ -29,7 +29,7 @@ if [[ "$TEST_MODE" == *"C"* ]]; then
         ./kmercamel -p "$INPUT" -k "$K" -a csac -c --precision 100 > "$DIR"/csac_c.txt
     /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_c_time.txt \
         ./kmercamel -p "$INPUT" -k "$K" -c > "$DIR"/gg_c_raw.txt && \
-        ./kmercamel optimize -p "$DIR"/gg_c_raw.txt -a runs -k "$K" > "$DIR"/gg_c.txt
+        ./kmercamel optimize -p "$DIR"/gg_c_raw.txt -a runs -k "$K" -c > "$DIR"/gg_c.txt
 fi
 
 if [[ "$TEST_MODE" != *"F"* ]]; then
