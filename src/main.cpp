@@ -14,7 +14,7 @@
 #include "khash_utils.h"
 
 // #include "ilp/global_ilp.h"
-#include "RLE-functions/global_CS-AC.h"
+#include "loac/global_loac.h"
 
 #include <iostream>
 #include <string>
@@ -107,13 +107,13 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
 
         GlobalHOG(kMerVec, *of, k, complements);*/
-    } else if (algorithm == "csac"){
+    } else if (algorithm == "loac"){
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
         wrapper.kh_destroy_set(kMers);
 
-        GlobalCS_AC(wrapper, kMerVec, *of, k, complements, run_penalty, precision);
+        GlobalLOAC(kMerVec, *of, k, complements, run_penalty, precision);
     } else {
         /*auto data = ReadFasta(path);
         if (data.empty()) {
@@ -250,8 +250,8 @@ int main(int argc, char **argv) {
     } else if (lower_bound && algorithm != "global") {
         std::cerr << "Lower bound computation supported only for hash table global." << std::endl;
         return Help();
-    } else if (algorithm != "csac" && (run_penalty != 0 || precision != 0)){
-        std::cerr << "Run penalty and Precision are only valid when using csac algorithm.";
+    } else if ((algorithm != "csac" && algorithm != "loac") && (run_penalty != 0 || precision != 0)){
+        std::cerr << "Run penalty and Precision are only valid when using CSAC or LOAC algorithm.";
         return Help();
     } else if (run_penalty < 1 && run_penalty != 0){
         std::cerr << "Run penalty has to be at least one.";
