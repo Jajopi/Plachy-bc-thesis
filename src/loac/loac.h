@@ -5,7 +5,7 @@
 #include <limits>
 #include <iostream>
 #include <iomanip>
-#include <map>
+#include <unordered_map>
 #include <random>
 
 #include "../kmers.h"
@@ -53,17 +53,92 @@ public:
 
 template<typename kmer_t, typename size_t_max>
 class FailureIndex {
-    std::vector<size_t_max> fi;
-    std::vector<kmer_t> &kMers;
-    void construct_index(){
+    const std::vector<kmer_t> &kMers;
+    size_t_max N;
+    size_t_max K;
+    
+    size_t_max FIRST_ROWS;
+    std::vector<size_t_max> first_rows;
+    std::vector<std::unordered_map<size_t_max, size_t_max>> cached;
+    std::vector<size_t_max> cache_size;
+    size_t_max CACHE_LIMIT;
 
+    static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
+
+    void construct_index(){
+        FIRST_ROWS = log2(K);
+
+        size_t_max N = kMers.size();
+        first_rows.resize(N * FIRST_ROWS);
+    
+        for (size_t_max row = 0; row < FIRST_ROWS; ++row){
+            for (size_t_max i = 0; i < N; ++i){
+                first_rows[row * N + i] = binary_search(i, K - row - 1);
+            }
+        }
+
+        // size_t_max N = kMers.size();
+        // first_row.resize(N);
+
+        // std::vector<std::pair<kmer_t, size_t_max>> first_failures(N);
+        // for (size_t_max i = 0; i < N; ++i){
+        //     first_failures[i] = std::make_pair(BitSuffix(kMers[i], K - 1), i);
+        // }
+        // std::sort(first_failures.begin(), first_failures.end());
+    
+        // for (size_t_max i = 0; i < N; ++i){
+        //     first_row[first_failures[i].second] = i;
+        // }
+
+        CACHE_LIMIT = N / (K - FIRST_ROWS);
+        cached.resize(K - FIRST_ROWS);
+        cache_size.resize(K - FIRST_ROWS);
     }
+
+    size_t_max binary_search(size_t_max index, size_t_max depth){
+        kmer_t searched = BitSuffix(kMers[index], depth);
+
+        size_t_max begin = 0, end = N - 1;
+        while (begin < end){
+            size_t_max middle = (begin + end) / 2;
+            kmer_t current = BitPrefix(kMers[middle], K, depth);
+
+            if (current == searched) end = middle;
+            else if (current < searched) begin = middle + 1;
+            else end = middle - 1;
+        }
+        return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
+    }
+
 public:
-    FailureIndex(const std::vector<kmer_t> &kmers) : kMers(kmers) {
+    FailureIndex(const std::vector<kmer_t> &kmers, size_t_max k) : kMers(kmers), N(kmers.size()), K(k) {
         construct_index();
     }
+
     size_t_max find_first_failure_leaf(size_t_max index, size_t_max depth){
-        kmer_t current = BitSuffix(kMers[index], depth);
+        if (depth >= (K - FIRST_ROWS)){
+            return first_rows[(K - depth - 1) * N + index];
+        }
+
+        auto c = cached[K - FIRST_ROWS - depth - 1];
+        
+        auto it = c.find(index);
+        if (it != c.end()){
+            return it->second;
+        }
+        
+        size_t_max result = binary_search(index, depth);
+        
+        c.emplace(std::make_pair(index, result));
+
+        auto cs = cache_size[K - FIRST_ROWS - depth - 1];
+        ++cs;
+        if (cs >= CACHE_LIMIT){
+            std::cerr << ' ' << cs << std::endl;
+            c.clear();
+        }
+
+        return result;
     }
 };
 
@@ -76,15 +151,17 @@ class LeafOnlyAC {
     
     size_t_max K;               // kmer-length
     size_t_max N;               // number of kmers, number of leaves
-    size_t_max SEARCH_CUTOFF;   // fraction of uncompleted leaves to switch to fast mode
     bool COMPLEMENTS;           // whether or not complements are used
-    
     bool COMPUTED_RESULT = false;
-    size_t_max RUN_PENALTY = INVALID_NODE();
     
-    std::vector<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> stack;
-    UnionFind<size_t_max> components;
+    size_t_max RUN_PENALTY = INVALID_NODE();
+    size_t_max SEARCH_CUTOFF;   // fraction of uncompleted leaves to switch to fast mode
+    
+    FailureIndex<kmer_t, size_t_max> fi;
+    
     std::vector<size_t_max> complements;
+    UnionFind<size_t_max> components;
+    std::vector<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> stack;
     std::vector<size_t_max> backtracks;
     std::vector<size_t_max> backtrack_indexes;
     std::vector<size_t_max> previous;
@@ -92,23 +169,17 @@ class LeafOnlyAC {
     std::vector<size_t_max> remaining_priorities;
     std::vector<bool> used;
 
-    void sort_kmers();
-
     bool try_complete_leaf(size_t_max leaf_to_connect, size_t_max priority_drop_limit);
     void push_failure_of_node_into_stack(size_t_max priority, size_t_max node_index, size_t_max node_depth, size_t_max last_leaf);
     void squeeze_uncompleted_leaves(std::vector<size_t_max>& unclompleted_leaves);
     void set_backtrack_path_for_leaf(size_t_max origin_leaf, size_t_max next_leaf);
-    
-    size_t_max find_first_failure_leaf(kmer_t kmer, size_t_max length);
 public:
     LeafOnlyAC(const std::vector<kmer_t>& kmers, size_t_max k, bool complements = false) :
-        kMers(kmers), K(k), N(kMers.size()), COMPLEMENTS(complements) {
-            std::sort(kMers.begin(), kMers.end());
+        kMers(kmers), K(k), N(kMers.size()), COMPLEMENTS(complements), fi(kMers, K) {
             find_complements();
         };
     LeafOnlyAC(std::vector<kmer_t>&& kmers, size_t_max k, bool complements = false) :
-        kMers(std::move(kmers)), K(k), N(kMers.size()), COMPLEMENTS(complements) {
-            std::sort(kMers.begin(), kMers.end());
+        kMers(std::move(kmers)), K(k), N(kMers.size()), COMPLEMENTS(complements), fi(kMers, K) {
             find_complements();
         };
 
@@ -151,23 +222,6 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::set_search_parameters(
 
     LOG_STREAM << "Run penalty: " << run_penalty << std::endl;
     // LOG_STREAM << "Precision: " << precision << std::endl;
-}
-
-template <typename kmer_t, typename size_t_max>
-inline size_t_max LeafOnlyAC<kmer_t, size_t_max>::find_first_failure_leaf(kmer_t kmer, size_t_max length) {
-    kmer_t searched = BitSuffix(kmer, length);
-    
-    size_t_max begin = 0, end = N - 1;
-    while (begin < end){
-        size_t_max middle = (begin + end) / 2;
-        kmer_t current = BitPrefix(kMers[middle], K, length);
-
-        if (current == searched) end = middle;
-        else if (current < searched) begin = middle + 1;
-        else end = middle - 1;
-    }
-    if (BitPrefix(kMers[begin], K, length) != searched) return INVALID_NODE();
-    return begin;
 }
 
 template <typename kmer_t, typename size_t_max>
@@ -254,7 +308,7 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
     // LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
 
     if (priority_drop_limit == 1){
-        size_t_max first_failure_leaf = find_first_failure_leaf(kMers[leaf_to_complete], K - 1);
+        size_t_max first_failure_leaf = fi.find_first_failure_leaf(leaf_to_complete, K - 1);
 
         if (first_failure_leaf == INVALID_NODE()){
             // LOG_STREAM << std::endl;
@@ -356,7 +410,7 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::push_failure_of_node_into_stack(
     size_t_max failure_index = INVALID_NODE();
 
     while (failure_depth > 0){
-        failure_index = find_first_failure_leaf(kMers[node_index], failure_depth);
+        failure_index = fi.find_first_failure_leaf(node_index, failure_depth);
         
         if (failure_index != INVALID_NODE()) break;
         --failure_depth;

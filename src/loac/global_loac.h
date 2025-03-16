@@ -13,6 +13,8 @@ template <typename kmer_t, typename size_t_max>
 void compute_with_lo_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty, size_t precision){
 
+    std::sort(kMers.begin(), kMers.end());
+
     auto loac = LeafOnlyAC<kmer_t, size_t_max>(
         kMers, size_t_max(k), complements);
 
