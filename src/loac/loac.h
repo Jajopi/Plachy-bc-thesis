@@ -417,10 +417,10 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::push_failure_of_node_into_stack(
     }
     if (failure_depth == 0) return;
     
-    if (priority < node_depth - failure_depth) return;
+    if (priority <= node_depth - failure_depth) return;
     priority -= (node_depth - failure_depth);
     if (node_depth == K - 1 || (node_depth == K && failure_depth < K - 1)){ // Run will be interrupted
-        if (priority < RUN_PENALTY) return;
+        if (priority <= RUN_PENALTY) return;
         priority -= RUN_PENALTY;
     }
 

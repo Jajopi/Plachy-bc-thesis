@@ -7,7 +7,7 @@
 #include "../kmers.h"
 #include "loac.h"
 
-#define DEFAULT_PRECISION 18
+#define DEFAULT_PRECISION 100
 
 template <typename kmer_t, typename size_t_max>
 void compute_with_lo_ac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
