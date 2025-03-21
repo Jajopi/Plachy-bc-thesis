@@ -13,8 +13,12 @@
 #include "ac/streaming.h"
 #include "khash_utils.h"
 
-// #include "ilp/global_ilp.h"
 #include "loac/global_loac.h"
+#define ENABLE_ILP
+#ifdef ENABLE_ILP
+    #include "ilp/ilp.h"
+#endif
+#include "csac/global_csac.h"
 
 #include <iostream>
 #include <string>
@@ -71,8 +75,8 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
 
     /* Handle streaming algorithm separately. */
     if (algorithm == "streaming") {
-        /*WriteName(k, *of);
-        Streaming(path, *of,  k , complements);*/
+        WriteName(k, *of);
+        Streaming(path, *of,  k , complements);
     }
     /* Handle hash table based algorithms separately so that they consume less memory. */
     else if (algorithm == "global" || algorithm == "local") {
@@ -94,28 +98,27 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
             else Global(wrapper, kMerVec, *of, k, complements);
         }
         else Local(kMers, wrapper, kmer_type, *of, k, d_max, complements);
-    } else if (algorithm == "ILP" || algorithm == "ilp") {
-        /*auto *kMers = wrapper.kh_init_set();
+#ifdef ENABLE_ILP
+    } else if (algorithm == "ilp") {
+        auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
-        size_t lower_bound = LowerBoundLength(wrapper, kMerVec, k, complements);
-        
-        GlobalILP(kMerVec, *of, k, complements, lower_bound);*/
-    } else if (algorithm == "hog") {
-        /*auto *kMers = wrapper.kh_init_set();
+        ILP(kMerVec, *of, k, complements);
+#endif
+    } else if (algorithm == "csac"){
+        auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
-
-        GlobalHOG(kMerVec, *of, k, complements);*/
+        wrapper.kh_destroy_set(kMers);
+        GlobalCS_AC(kMerVec, *of, k, complements, run_penalty, precision);
     } else if (algorithm == "loac"){
         auto *kMers = wrapper.kh_init_set();
         ReadKMers(kMers, wrapper, kmer_type, path, k, complements);
         std::vector<kmer_t> kMerVec = kMersToVec(kMers, kmer_type);
         wrapper.kh_destroy_set(kMers);
-
         GlobalLOAC(kMerVec, *of, k, complements, run_penalty, precision);
     } else {
-        /*auto data = ReadFasta(path);
+        auto data = ReadFasta(path);
         if (data.empty()) {
             std::cerr << "Path '" << path << "' not to a fasta file." << std::endl;
             return Help();
@@ -133,7 +136,7 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         else {
             std::cerr << "Algorithm '" << algorithm << "' not supported." << std::endl;
             return Help();
-        }*/
+        }
     }
     *of << std::endl;
     return 0;
@@ -260,17 +263,12 @@ int main(int argc, char **argv) {
         std::cerr << "Precision has to be at least one.";
         return Help();
     }
-#ifndef DEBUG_FAST_COMPILATION
-    /*if (k < 16){
-        return kmercamel(kmer_dict32_t(), kmer32_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
-    } else */if (k < 32) {
+
+    if (k < 32) {
         return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     } else if (k < 64) {
         return kmercamel(kmer_dict128_t(), kmer128_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     } else {
         return kmercamel(kmer_dict256_t(), kmer256_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound, run_penalty, precision);
     }
-#else
-    return kmercamel(kmer_dict64_t(), kmer64_t(0), path, k, d_max, of, complements, masks, algorithm, optimize_memory, lower_bound);
-#endif
 }

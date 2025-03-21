@@ -169,35 +169,3 @@ size_t_max max_overlap_length(kmer_t kmer1, kmer_t kmer2, size_t_max k){
     }
     return 0;
 }
-
-template <typename kmer_t, typename size_t_max>
-size_t_max decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vector<size_t_max>& indexes, std::ostream& os, size_t_max k,
-    bool encode_mask = true, bool count_not_print = false){
-    size_t_max total_length = 0;
-    size_t_max run_count = 1;
-    
-    kmer_t actual_kmer = kMers[indexes[0]], new_kmer = 0;
-    for (size_t_max i = 1; i < indexes.size(); ++i){
-        new_kmer = kMers[indexes[i]];
-        
-        size_t_max ov = max_overlap_length(actual_kmer, new_kmer, k);
-        //print_kmer(actual_kmer, k, os, size_t_max(k)); std::cout << ' '; print_kmer(new_kmer, k, os, size_t_max(k)); std::cout << ' ' << ov << std::endl;
-        if (encode_mask && !count_not_print) print_kmer_masked(actual_kmer, k, os, size_t_max(k - ov));
-        else if(!count_not_print) print_kmer(actual_kmer, k, os, size_t_max(k - ov));
-        
-        total_length += k - ov;
-        if (ov < k - 1) ++run_count;
-
-        actual_kmer = new_kmer;
-    }
-    if (encode_mask && !count_not_print) print_kmer_masked(new_kmer, k, os);
-    else if(!count_not_print) print_kmer(new_kmer, k, os);
-    
-    total_length += k;
-
-    os << std::endl;
-    std::cerr << "Total length: " << total_length << std::endl;
-    // std::cerr << "Run count: " << run_count << std::endl;
-
-    return total_length;
-}

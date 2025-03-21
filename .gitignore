@@ -8,6 +8,8 @@ data/big
 count_kmers.py
 count_noncomplement_kmers.py
 parameters_testing_outputs
-compare_inputs*
 __pycache__
 results.txt
+figures
+.gurobi_lib
+src/ilp/gurobi
