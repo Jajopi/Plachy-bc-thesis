@@ -270,6 +270,7 @@ template <typename kmer_t, typename size_t_max>
 inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         size_t_max leaf_to_complete, size_t_max priority_drop_limit) {
 
+    // LOG_STREAM << '\t';
     // print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
     // LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
     // LOG_STREAM << std::endl;
@@ -299,6 +300,9 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
                 next[complements[i]] = leaf_complement;
                 components.connect(complements[i], leaf_complement);
             }
+
+            // print_kmer(kMers[i], K, LOG_STREAM, K);
+            // LOG_STREAM << '\t' << i << std::endl;
 
             // LOG_STREAM << " -> " << i << ' '; print_kmer(kMers[i], K, LOG_STREAM, K); LOG_STREAM << std::endl;
             return true;
@@ -334,7 +338,7 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
                 components.are_connected(leaf_to_complete, i)) continue;
 
             // print_kmer(kMers[i], K, LOG_STREAM, K);
-            // LOG_STREAM << ' ' << i << std::endl;
+            // LOG_STREAM << '\t' << i << std::endl;
 
             used[i] = true;
             next[leaf_to_complete] = i;
@@ -358,8 +362,7 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         for (size_t_max i = leaf_index; i < N &&
             BitPrefix(kMers[leaf_index], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
             ++i){
-            if (i == leaf_to_complete ||
-                (COMPLEMENTS && i == leaf_complement)) continue;
+            if (i == leaf_to_complete) continue;
 
             if (remaining_priorities[i] >= priority) continue;
             remaining_priorities[i] = priority;
@@ -368,7 +371,7 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
             push_failure_of_node_into_stack(priority, i, K, i); // Add failure of that leaf
         }
 
-        push_failure_of_node_into_stack(priority, leaf_index, chain_depth, last_leaf); // Add failure of current node
+        push_failure_of_node_into_stack(priority, last_leaf, chain_depth, last_leaf); // Add failure of current node
     }
     // LOG_STREAM << std::endl;
     return false;
@@ -445,7 +448,7 @@ inline size_t_max LeafOnlyAC<kmer_t, size_t_max>::print_result(std::ostream& os)
     if (!COMPUTED_RESULT){
         throw std::invalid_argument("Result has not been computed yet.");
     }
-    // LOG_STREAM << std::endl << "Printing..."; LOG_STREAM.flush();
+    LOG_STREAM << std::endl << "Printing..."; LOG_STREAM.flush();
 
     size_t_max total_length = 0;
     size_t_max run_count = 1;
