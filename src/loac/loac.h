@@ -126,8 +126,8 @@ class LeafOnlyAC {
     
     std::vector<size_t_max> complements;
     UnionFind<size_t_max> components;
-    // std::vector<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> stack;
-    std::queue<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> que;
+    std::vector<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> stack;
+    // std::queue<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> que;
     std::vector<size_t_max> backtracks;
     std::vector<size_t_max> backtrack_indexes;
     std::vector<size_t_max> previous;
@@ -271,8 +271,8 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         size_t_max leaf_to_complete, size_t_max priority_drop_limit) {
 
     print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
-    LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
-    LOG_STREAM << std::endl;
+    // LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
+    // LOG_STREAM << std::endl;
 
     if (priority_drop_limit == 1){
         size_t_max first_failure_leaf = fi.find_first_failure_leaf(leaf_to_complete, K - 1);
@@ -308,11 +308,12 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         return false;
     }
 
-    que = {}; // Stores priority, current leaf_index, current chain depth, last_leaf index
+    stack.clear();
+    // que = {}; // Stores priority, current leaf_index, current chain depth, last_leaf index
     push_failure_of_node_into_stack(priority_drop_limit, leaf_to_complete, K, leaf_to_complete);
 
-    while (!que.empty()){
-        auto t = que.front(); que.pop();
+    while (!stack.empty()){
+        auto t = stack.back(); stack.pop_back();
         size_t_max priority = std::get<0>(t);
         size_t_max leaf_index = std::get<1>(t);
         size_t_max chain_depth = std::get<2>(t);
@@ -332,8 +333,8 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
                 used[i] ||
                 components.are_connected(leaf_to_complete, i)) continue;
 
-            print_kmer(kMers[i], K, LOG_STREAM, K);
-            LOG_STREAM << ' ' << i << std::endl;
+            // print_kmer(kMers[i], K, LOG_STREAM, K);
+            // LOG_STREAM << ' ' << i << std::endl;
 
             used[i] = true;
             next[leaf_to_complete] = i;
@@ -396,7 +397,7 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::push_failure_of_node_into_stack(
     }
 
     // LOG_STREAM << " p " << failure_index;
-    que.push(std::make_tuple(priority, failure_index, failure_depth, last_leaf));
+    stack.push_back(std::make_tuple(priority, failure_index, failure_depth, last_leaf));
 }
 
 template <typename kmer_t, typename size_t_max>
