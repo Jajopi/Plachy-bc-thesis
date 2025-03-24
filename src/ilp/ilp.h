@@ -32,18 +32,13 @@ size_t decode_and_print_indexes(const std::vector<kmer_t>& kMers, const std::vec
         actual_kmer = new_kmer;
     }
     print_kmer_masked(new_kmer, k, os, k);
-    
     total_length += k;
-
-    // std::cerr << std::endl;
-    // std::cerr << "Total length: " << total_length << std::endl;
-    // std::cerr << "Run count: " << run_count << std::endl;
 
     return total_length;
 }
 
 template <typename kmer_t>
-void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
+void ILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool complements) {
     if (kMers.empty()) {
 		throw std::invalid_argument("Input cannot be empty.");
 	}
@@ -62,6 +57,6 @@ void GlobalILP(std::vector<kmer_t>& kMers, std::ostream& os, size_t k, bool comp
     os << ">superstring k=" << k << std::endl;
     size_t total_length = decode_and_print_indexes(kMers, indexes, os, k);
     
-    std::cerr << total_length << " / " << kMers.size() * k / (complements ? 2 : 1) << std::endl;
+    std::cerr << std::endl << total_length << " / " << kMers.size() * k / (complements ? 2 : 1) << std::endl;
 }
 

@@ -12,7 +12,7 @@ FIG_DIR = "figures"
 RECOMPUTE_ALL = False
 
 KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
-ALG_OLD, ALG_NEW = "global", "loac"
+ALG_OLD, ALG_NEW = "global", "csac"
 ALGORITHMS = [ALG_OLD, ALG_NEW]
 
 def compute_objective(result):
