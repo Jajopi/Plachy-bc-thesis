@@ -25,7 +25,12 @@ public:
     size_t complement_index(size_t index){
         if (!COMPLEMENTS) return index;
 
+<<<<<<< Updated upstream
         return (index + kMers.size() / 2) % kMers.size();
+=======
+        if (index < kMers.size() / 2) return index + kMers.size() / 2;
+        return index - kMers.size() / 2;
+>>>>>>> Stashed changes
     }
 
     PathFinder(size_t k, bool complements,
@@ -81,6 +86,10 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
             in_edges[i].resize(K);
             for (size_t depth = 0; depth < K; ++depth){
                 in_edges[i][depth] = model.addVar(0, 1, 0, GRB_BINARY);
+
+                if (COMPLEMENTS && i >= N / 2){
+                    model.addConstr(in_edges[i][depth] == in_edges[i - N / 2][depth]);
+                }
                 
                 indegrees[i] += in_edges[i][depth];
                 
@@ -95,12 +104,26 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
                     start_sum += starting[i];
 
                     indegrees[i] += starting[i];
+<<<<<<< Updated upstream
+=======
+
+                    if (COMPLEMENTS && i >= N / 2){
+                        model.addConstr(starting[i] == starting[i - N / 2]);
+                    }
+>>>>>>> Stashed changes
                 }
             }
             
             out_edges[i].resize(K);
             for (size_t depth = 0; depth < K; ++depth){
                 out_edges[i][depth] = model.addVar(0, 1, K - depth, GRB_BINARY);
+<<<<<<< Updated upstream
+=======
+
+                if (COMPLEMENTS && i >= N / 2){
+                    model.addConstr(out_edges[i][depth] == out_edges[i - N / 2][depth]);
+                }
+>>>>>>> Stashed changes
                 
                 outdegrees[i] += out_edges[i][depth];
                 
@@ -115,6 +138,7 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
                     end_sum += ending[i];
                     
                     outdegrees[i] += ending[i];
+<<<<<<< Updated upstream
                 }
             }
         }
@@ -137,6 +161,29 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
         
         model.addConstr(start_sum == (COMPLEMENTS ? 2 : 1));
         model.addConstr(end_sum == (COMPLEMENTS ? 2 : 1));
+=======
+
+                    if (COMPLEMENTS && i >= N / 2){
+                        model.addConstr(ending[i] == ending[i - N / 2]);
+                    }
+                }
+            }
+        }
+        
+        for (size_t i = 0; i < N; ++i){
+            model.addConstr(indegrees[i] == 1);
+            model.addConstr(outdegrees[i] == 1);
+        }
+
+        if (COMPLEMENTS){
+            model.addConstr(start_sum == 2);
+            model.addConstr(end_sum == 2);
+        }
+        else{
+            model.addConstr(start_sum == 1);
+            model.addConstr(end_sum == 1);
+        }
+>>>>>>> Stashed changes
 
         for (const auto &overlap : in_overlaps){
             if (out_overlaps.find(overlap.first) == out_overlaps.end()){
@@ -183,7 +230,10 @@ template <typename kmer_t>
 inline void PathFinder<kmer_t>::callback(){
     try {
         if (where != GRB_CB_MIPSOL) return;
+<<<<<<< Updated upstream
         // if (COMPLEMENTS) return;
+=======
+>>>>>>> Stashed changes
         
         size_t N = in_edges.size();
 
@@ -195,6 +245,7 @@ inline void PathFinder<kmer_t>::callback(){
         if (COMPLEMENTS) previous.resize(N, std::make_pair(N, K));
 
         // Set reachable path as visited
+<<<<<<< Updated upstream
         size_t starting_index = N;
         for (size_t i = 0; i < N / 2; ++i){
             if (getSolution(starting[i]) == 1){
@@ -202,6 +253,13 @@ inline void PathFinder<kmer_t>::callback(){
                 visited[i] = true;
                 starting_index = i;
                 // if (COMPLEMENTS) visited[complement_index(starting_index)] = true;
+=======
+        for (size_t starting_index = 0; starting_index < N; ++starting_index){
+            if (getSolution(starting[starting_index]) == 1){
+                reachable_nodes.push_back(starting_index);
+                visited[starting_index] = true;
+                if (COMPLEMENTS) visited[complement_index(starting_index)] = true;
+>>>>>>> Stashed changes
                 break;
             }
         }
@@ -225,7 +283,10 @@ inline void PathFinder<kmer_t>::callback(){
 
             kmer_t next_overlap = BitSuffix(kMers[index], depth);
             for (size_t i = 0; i < N; ++i){
+<<<<<<< Updated upstream
                 if (visited[i]) continue;
+=======
+>>>>>>> Stashed changes
                 if (BitPrefix(kMers[i], K, depth) == next_overlap &&
                         getSolution(in_edges[i][depth]) == 1){
 
@@ -258,6 +319,7 @@ inline void PathFinder<kmer_t>::callback(){
 
                     reachable_nodes.push_back(i);
                     visited[i] = true;
+<<<<<<< Updated upstream
                     
                     std::cerr << i << ' '; print_kmer(kMers[i], K, std::cerr, K);
                     std::cerr << ' ' << (i + N / 2) % N << std::endl;
@@ -266,13 +328,16 @@ inline void PathFinder<kmer_t>::callback(){
                     // if (COMPLEMENTS) visited[complement_index(i)] = true;
 
                     break;
+=======
+                    if (COMPLEMENTS) visited[complement_index(i)] = true;
+>>>>>>> Stashed changes
                 }
             }
         }
             
         std::cerr << "- Callback: reachable nodes " << reachable_count << " / " << N << std::endl;
 
-        if (reachable_count == N) return;
+        if (reachable_count == N || (COMPLEMENTS && reachable_count == N / 2)) return;
 
         // Find all cycles and add constraints
         GRBLinExpr cycles;
@@ -319,19 +384,29 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
 
         std::vector<size_t> next(N), previous(N);
         size_t start_index = N, end_index = N;
-        Node start_node, end_node;
+        Node start_node, end_node, complement_end_node;
 
         // Construct the graph
         for (size_t i = 0; i < N; ++i){
+<<<<<<< Updated upstream
             if (starting[i].get(GRB_DoubleAttr_X) == 1 && start_index == N &&
                     i != end_index + N / 2) start_index = i;
             if (ending[i].get(GRB_DoubleAttr_X) == 1 && end_index == N &&
                     i != start_index + N / 2){
+=======
+            if (starting[i].get(GRB_DoubleAttr_X) == 1 && start_index == N) start_index = i;
+            if (ending[i].get(GRB_DoubleAttr_X) == 1 && end_index == N){
+>>>>>>> Stashed changes
                 end_index = i;
                 for (size_t d = 0; d < K; ++d){
                     if (in_edges[i][d].get(GRB_DoubleAttr_X) != 1) continue;
 
                     end_node = Node(BitPrefix(kMers[i], K, d), d);
+<<<<<<< Updated upstream
+=======
+                    if (COMPLEMENTS) complement_end_node = Node(BitPrefix(kMers[complement_index(i)], K, d), d);
+                    // edges[Node(BitPrefix(kMers[i], K, d), d)].first.emplace_back(Node(0, 0), i);
+>>>>>>> Stashed changes
                     break;
                 }
                 continue;
@@ -356,6 +431,11 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
             }
         }
         edges[end_node].first.emplace_back(Node(0, 0), end_index);
+        if (COMPLEMENTS){
+            edges[complement_end_node].first.emplace_back(Node(0, 0), complement_index(end_index));
+        }
+
+        std::vector<bool> complement_visited(COMPLEMENTS ? N : 0);
 
         std::vector<bool> visited(N);
 
@@ -370,17 +450,34 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
         // Find walk from start to end
         Node node = start_node;
         size_t last_index = start_index;
+<<<<<<< Updated upstream
         while (last_index != end_index){
             std::cerr << last_index << ' '; print_kmer(kMers[last_index], K, std::cerr, K);
             std::cerr << ' ' << (last_index + N / 2) % N;
             std::cerr << ' ' << edges[node].second << ' ' << edges[node].first.size() << ' ' << node.second << std::endl;
+=======
+        while (last_index != end_index && last_index != complement_index(end_index)){
+            // print_kmer(node.first, K, std::cerr, K);
+            // std::cerr << ' ' << node.second << std::endl;
+>>>>>>> Stashed changes
 
             if (edges[node].second == 0) reached.push_back(node);
 
             auto p = edges[node].first[edges[node].second++];
             size_t index = p.second;
             
+<<<<<<< Updated upstream
             visited[index] = true;
+=======
+            if (COMPLEMENTS){
+                while (complement_visited[complement_index(index)]){
+                    p = edges[node].first[edges[node].second++];
+                    index = p.second;
+                }
+                complement_visited[index] = true;
+            }
+            // std::cerr << index << std::endl;
+>>>>>>> Stashed changes
 
             next[last_index] = index;
             previous[index] = last_index;
@@ -398,7 +495,15 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
             --i;
 
             size_t edge_index = edges[first_node].second - 1;
+<<<<<<< Updated upstream
 
+=======
+            if (COMPLEMENTS){
+                while (complement_visited[complement_index(edges[first_node].first[edge_index].second)]){
+                    --edge_index;
+                }
+            }
+>>>>>>> Stashed changes
             size_t next_index = edges[first_node].first[edge_index].second;
             size_t last_index = previous[next_index];
 
@@ -409,6 +514,17 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
                 auto p = edges[node].first[edges[node].second++];
                 size_t index = p.second;
 
+<<<<<<< Updated upstream
+=======
+                if (COMPLEMENTS){
+                    while (complement_visited[complement_index(index)]){
+                        p = edges[node].first[edges[node].second++];
+                        index = p.second;
+                    }
+                    complement_visited[index] = true;
+                }
+    
+>>>>>>> Stashed changes
                 next[last_index] = index;
                 previous[index] = last_index;
     
@@ -423,6 +539,11 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
         std::vector<size_t> indexes(COMPLEMENTS ? N / 2 : N);
         size_t actual = start_index;
         for (size_t i = 0; i < (COMPLEMENTS ? N / 2 : N); ++i){
+<<<<<<< Updated upstream
+=======
+            // print_kmer(kMers[actual], K, std::cerr, K);
+            // std::cerr << '-' << actual << std::endl;
+>>>>>>> Stashed changes
             indexes[i] = actual;
             actual = next[actual];
         }
