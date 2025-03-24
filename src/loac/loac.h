@@ -270,7 +270,7 @@ template <typename kmer_t, typename size_t_max>
 inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         size_t_max leaf_to_complete, size_t_max priority_drop_limit) {
 
-    print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
+    // print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
     // LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
     // LOG_STREAM << std::endl;
 
