@@ -156,6 +156,9 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             ++node.leaf_range_begin;
         }
         if (node.leaf_range_begin != leaf_range_end){ // We found at least one suitable leaf to complete the current one
+            print_kmer(kMers[node.leaf_range_begin], K, LOG_STREAM, K);
+            LOG_STREAM << ' ' << node.leaf_range_begin << std::endl;
+
             nodes[node.leaf_range_begin].set_used();
             leaf_node.set_next(node.leaf_range_begin);
             components.connect(leaf_index, node.leaf_range_begin);
