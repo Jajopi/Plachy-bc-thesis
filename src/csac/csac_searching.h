@@ -99,7 +99,7 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         size_t_max leaf_index, size_t_max priority_drop_limit) {
 
     print_kmer(kMers[leaf_index], K, LOG_STREAM, K);
-    LOG_STREAM << ' ' << leaf_index << priority_drop_limit << std::endl;
+    LOG_STREAM << ' ' << leaf_index << ' ' << priority_drop_limit << std::endl;
     
     if (priority_drop_limit == EXTENSION_PENALTY){
         Node& leaf_node = nodes[leaf_index];
