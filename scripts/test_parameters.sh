@@ -6,7 +6,8 @@ ALG="$1"
 INPUT="$2"
 K="$3"
 TEST_MODE="${4:-""}"
-# "N" for counting kmers check - slow
+# TEST_MODE:
+# "N" for counting kmers check - with python script, slow
 # "C" for also running the computation with complements
 # "F" for output in one line without explanatory texts
 # "S" for only checking previously computed files
@@ -20,18 +21,20 @@ fi
 
 mkdir -p "$DIR";
 
-/usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_time.txt \
-    ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" > "$DIR"/csac.txt
-/usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_time.txt \
-    ./kmercamel -p "$INPUT" -k "$K" > "$DIR"/gg_raw.txt && \
-    ./kmercamel optimize -p "$DIR"/gg_raw.txt -a runs -k "$K" > "$DIR"/gg.txt
+if [[ "$TEST_MODE" != *"S"* ]]; then
+    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_time.txt \
+        ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" > "$DIR"/csac.txt
+    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_time.txt \
+        ./kmercamel -p "$INPUT" -k "$K" > "$DIR"/gg_raw.txt && \
+        ./kmercamel optimize -p "$DIR"/gg_raw.txt -a runs -k "$K" > "$DIR"/gg.txt
 
-if [[ "$TEST_MODE" == *"C"* ]]; then        
-    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_c_time.txt \
-        ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" -c > "$DIR"/csac_c.txt
-    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_c_time.txt \
-        ./kmercamel -p "$INPUT" -k "$K" -c > "$DIR"/gg_c_raw.txt && \
-        ./kmercamel optimize -p "$DIR"/gg_c_raw.txt -a runs -k "$K" -c > "$DIR"/gg_c.txt
+    if [[ "$TEST_MODE" == *"C"* ]]; then        
+        /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/csac_c_time.txt \
+            ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" -c > "$DIR"/csac_c.txt
+        /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/gg_c_time.txt \
+            ./kmercamel -p "$INPUT" -k "$K" -c > "$DIR"/gg_c_raw.txt && \
+            ./kmercamel optimize -p "$DIR"/gg_c_raw.txt -a runs -k "$K" -c > "$DIR"/gg_c.txt
+    fi
 fi
 
 if [[ "$TEST_MODE" != *"F"* ]]; then

@@ -38,13 +38,6 @@ def plot_all():
                     sns.lineplot(y=ys[i], x=xs, ax=axs[i // 3, i % 3],
                                  marker="o" if complements else "s", markeredgewidth=0,
                                  label=alg + ("(c)" if complements else ""))
-                    # for y, x in zip(ys[i], xs):
-                    #     ax.text(x, y, "{:.2E}".format(y).split("E")[0],
-                    #             alpha=0.5,
-                    #             horizontalalignment="left" if complements else "right",
-                    #             verticalalignment="bottom" if alg == ALG_NEW else "top",
-                    #             stretch="ultra-condensed",
-                    #             rotation=45 * (1 if complements == (alg == ALG_NEW) else -1))
         
         if not empty:
             for i, label in enumerate(LABELS):

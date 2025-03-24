@@ -12,8 +12,8 @@ FIG_DIR = "figures"
 RECOMPUTE_ALL = False
 
 KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
-ALG_OLD, ALG_NEW = "global", "loac"
-ALGORITHMS = [ALG_OLD, ALG_NEW]
+ALG_OLD = "global"
+ALGORITHMS = [ALG_OLD, "csac", "loac"]
 
 def compute_objective(result):
     return result[0] + result[1] * math.log2(result[0])
@@ -28,7 +28,7 @@ def run_with_parameters(input_name, algorithm, k, complements=False, run_penalty
                  "-k", str(k),
                  "-a", algorithm,
                  "-c" if complements else "  ",
-                 f"--run-penalty {run_penalty}" if algorithm == ALG_NEW and run_penalty != 0 else ""
+                 f"--run-penalty {run_penalty}" if algorithm != ALG_OLD and run_penalty != 0 else ""
                 ])
 
 def load_all_inputs(file_name):
@@ -87,7 +87,7 @@ def load_all_results(file_name):
         key = parse_header(header)
         alg, inp, k, c = key
         done[key][LABELS[5]] = (done[key][LABELS[4]] / done[(ALG_OLD, inp, k, c)][LABELS[4]]
-                                if alg == ALG_NEW
+                                if alg != ALG_OLD
                                 else 1)
 
     return done

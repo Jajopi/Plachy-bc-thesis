@@ -80,9 +80,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
                     uncompleted_leaves[i] = INVALID_LEAF();
                 }
             }
-            
         }
-
         squeeze_uncompleted_leaves(uncompleted_leaves);
     }
 
@@ -97,9 +95,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         size_t_max leaf_index, size_t_max priority_drop_limit) {
-
-    // print_kmer(kMers[leaf_index], K, LOG_STREAM, K);
-    // LOG_STREAM << ' ' << leaf_index << ' ' << priority_drop_limit << std::endl;
     
     if (priority_drop_limit == EXTENSION_PENALTY){
         Node& leaf_node = nodes[leaf_index];
@@ -156,8 +151,6 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             ++node.leaf_range_begin;
         }
         if (node.leaf_range_begin != leaf_range_end){ // We found at least one suitable leaf to complete the current one
-            // print_kmer(kMers[node.leaf_range_begin], K, LOG_STREAM, K);
-            // LOG_STREAM << ' ' << node.leaf_range_begin << std::endl;
 
             nodes[node.leaf_range_begin].set_used();
             leaf_node.set_next(node.leaf_range_begin);
@@ -234,7 +227,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_backtrack_path_f
     size_t_max actual = next_leaf;
     while (actual != origin_leaf){
         backtracks.push_back(actual);
-        // if (actual == previous[actual]) break; // Bad things happen
         actual = previous[actual];
     }
     backtrack_indexes[origin_leaf] = backtracks.size() - 1;
@@ -248,7 +240,6 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::set_backtrack_path_f
         size_t_max actual = previous[next_leaf];
         while (index >= last_size + count){
             backtracks[index--] = nodes[actual].complement_index;
-            // if (actual == previous[actual]) break; // Bad things happen
             actual = previous[actual];
         }
         backtrack_indexes[nodes[next_leaf].complement_index] = backtracks.size() - 1;
@@ -270,7 +261,6 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
     kmer_t last_kmer = 0;
     for (size_t_max i = 0; i < N; ++i){
         if (components.find(i) != i){
-            // other_count++;
             continue;
         }
         if (COMPLEMENTS){
@@ -300,7 +290,6 @@ inline size_t_max CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::print_result(s
                 size_t_max actual_backtrack = backtracks[backtrack_index];
                 size_t_max next = nodes[actual].next();
                 while (actual_backtrack != next){
-                    // other_count++;
                     kmer_t actual_kmer = kMers[actual_backtrack];
                     size_t_max ov = max_overlap_length(last_kmer, actual_kmer, K);
                     print_kmer_masked(last_kmer, K, os, size_t_max(K - ov));
