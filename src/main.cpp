@@ -13,12 +13,12 @@
 #include "ac/streaming.h"
 #include "khash_utils.h"
 
+#include "csac/global_csac.h"
 #include "loac/global_loac.h"
-#define ENABLE_ILP
+// #define ENABLE_ILP
 #ifdef ENABLE_ILP
     #include "ilp/ilp.h"
 #endif
-#include "csac/global_csac.h"
 
 #include <iostream>
 #include <string>

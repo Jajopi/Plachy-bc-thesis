@@ -7,49 +7,14 @@
 #include <iomanip>
 #include <unordered_map>
 #include <random>
+#include <queue>
 
 #include "../kmers.h"
+#include "../unionfind.h"
 
 #define RANDOM_SEED 0
 #define MAX_COUNT_WIDTH 12
 #define MAX_ITERS_WIDTH 3
-
-template<typename size_t_max>
-class UnionFind {
-    std::vector<size_t_max> roots;
-    size_t_max component_count;
-public:
-    UnionFind(size_t_max size) : roots(size), component_count(size) {
-        for (size_t_max i = 0; i < size; ++i) roots[i] = i;
-    };
-    UnionFind() = default;
-    
-    inline size_t_max find(size_t_max x) {
-        size_t_max root = roots[x];
-        if (roots[root] == root) return root;
-        while (roots[root] != root) root = roots[root];
-        
-        while (x != root){
-            size_t_max new_x = roots[x];
-            roots[x] = root;
-            x = new_x;
-        }
-        return root;
-    }
-
-    inline bool are_connected(size_t_max x, size_t_max y){
-        return find(x) == find(y);
-    }
-
-    inline void connect(size_t_max to, size_t_max from){ // Second one points to the first one - points to the begining of a chain
-        if (are_connected(from, to)) return;
-        roots[from] = to;
-        --component_count;
-    }
-
-    inline size_t_max count() const { return component_count; };
-};
-
 
 template<typename kmer_t, typename size_t_max>
 class FailureIndex {
@@ -161,7 +126,8 @@ class LeafOnlyAC {
     
     std::vector<size_t_max> complements;
     UnionFind<size_t_max> components;
-    std::vector<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> stack;
+    // std::vector<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> stack;
+    std::queue<std::tuple<size_t_max, size_t_max, size_t_max, size_t_max>> que;
     std::vector<size_t_max> backtracks;
     std::vector<size_t_max> backtrack_indexes;
     std::vector<size_t_max> previous;
@@ -304,8 +270,9 @@ template <typename kmer_t, typename size_t_max>
 inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         size_t_max leaf_to_complete, size_t_max priority_drop_limit) {
 
-    // print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
-    // LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
+    print_kmer(kMers[leaf_to_complete], K, LOG_STREAM, K);
+    LOG_STREAM << ' ' << leaf_to_complete << ' ' << priority_drop_limit;
+    LOG_STREAM << std::endl;
 
     if (priority_drop_limit == 1){
         size_t_max first_failure_leaf = fi.find_first_failure_leaf(leaf_to_complete, K - 1);
@@ -341,11 +308,11 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         return false;
     }
 
-    stack.clear(); // Stores priority, current leaf_index, current chain depth, last_leaf index
+    que = {}; // Stores priority, current leaf_index, current chain depth, last_leaf index
     push_failure_of_node_into_stack(priority_drop_limit, leaf_to_complete, K, leaf_to_complete);
 
-    while (!stack.empty()){
-        auto t = stack.back(); stack.pop_back();
+    while (!que.empty()){
+        auto t = que.front(); que.pop();
         size_t_max priority = std::get<0>(t);
         size_t_max leaf_index = std::get<1>(t);
         size_t_max chain_depth = std::get<2>(t);
@@ -417,15 +384,16 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::push_failure_of_node_into_stack(
     }
     if (failure_depth == 0) return;
     
-    if (priority <= node_depth - failure_depth) return;
+    if (priority < node_depth - failure_depth) return;
     priority -= (node_depth - failure_depth);
+
     if (node_depth == K - 1 || (node_depth == K && failure_depth < K - 1)){ // Run will be interrupted
-        if (priority <= RUN_PENALTY) return;
+        if (priority < RUN_PENALTY) return;
         priority -= RUN_PENALTY;
     }
 
     // LOG_STREAM << " p " << failure_index;
-    stack.push_back(std::make_tuple(priority, failure_index, failure_depth, last_leaf));
+    que.push(std::make_tuple(priority, failure_index, failure_depth, last_leaf));
 }
 
 template <typename kmer_t, typename size_t_max>
