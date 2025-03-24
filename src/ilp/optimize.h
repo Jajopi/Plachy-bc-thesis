@@ -25,8 +25,7 @@ public:
     size_t complement_index(size_t index){
         if (!COMPLEMENTS) return index;
 
-        if (index < kMers.size() / 2) return index + kMers.size() / 2;
-        return index - kMers.size() / 2;
+        return (index + kMers.size() / 2) % kMers.size();
     }
 
     PathFinder(size_t k, bool complements,
@@ -119,27 +118,25 @@ std::vector<size_t> compute_indexes(const std::vector<kmer_t>& kMers,
                 }
             }
         }
-        if (COMPLEMENTS){
-            std::vector<GRBVar> this_complement_used(N);
-            
-            for (size_t i = 0; i < N; ++i){
-                this_complement_used[i] = model.addVar(0, 1, 0, GRB_BINARY);
-                if (i >= N / 2){
-                    model.addConstr(this_complement_used[i] + this_complement_used[i - N / 2] == 1);
-                }
-                model.addConstr(indegrees[i] == this_complement_used[i]);
-                model.addConstr(outdegrees[i] == this_complement_used[i]);
-            }
-        }
-        else {
-            for (size_t i = 0; i < N; ++i){
-                model.addConstr(indegrees[i] == 1);
-                model.addConstr(outdegrees[i] == 1);
-            }
+
+        for (size_t i = 0; i < N; ++i){
+            model.addConstr(indegrees[i] == 1);
+            model.addConstr(outdegrees[i] == 1);
         }
 
-        model.addConstr(start_sum == 1);
-        model.addConstr(end_sum == 1);
+        if (COMPLEMENTS){            
+            for (size_t i = N / 2; i < N; ++i){
+                for (size_t depth = 0; depth < K; ++depth){
+                    model.addConstr(in_edges[i][depth] == out_edges[i - N / 2][depth]);
+                    model.addConstr(out_edges[i][depth] == in_edges[i - N / 2][depth]);
+                }    
+                model.addConstr(starting[i] == ending[i - N / 2]);
+                model.addConstr(ending[i] == starting[i - N / 2]);
+            }    
+        }    
+        
+        model.addConstr(start_sum == (COMPLEMENTS ? 2 : 1));
+        model.addConstr(end_sum == (COMPLEMENTS ? 2 : 1));
 
         for (const auto &overlap : in_overlaps){
             if (out_overlaps.find(overlap.first) == out_overlaps.end()){
@@ -193,13 +190,18 @@ inline void PathFinder<kmer_t>::callback(){
         std::vector<bool> visited(N, false);
         size_t reachable_count = 0;
         std::vector<size_t> reachable_nodes;
+        
+        std::vector<std::pair<size_t, size_t>> previous; // index, depth
+        if (COMPLEMENTS) previous.resize(N, std::make_pair(N, K));
 
         // Set reachable path as visited
-        for (size_t starting_index = 0; starting_index < N / 2; ++starting_index){
-            if (getSolution(starting[starting_index]) == 1){
-                reachable_nodes.push_back(starting_index);
-                visited[starting_index] = true;
-                if (COMPLEMENTS) visited[complement_index(starting_index)] = true;
+        size_t starting_index = N;
+        for (size_t i = 0; i < N / 2; ++i){
+            if (getSolution(starting[i]) == 1){
+                reachable_nodes.push_back(i);
+                visited[i] = true;
+                starting_index = i;
+                // if (COMPLEMENTS) visited[complement_index(starting_index)] = true;
                 break;
             }
         }
@@ -209,7 +211,7 @@ inline void PathFinder<kmer_t>::callback(){
             reachable_nodes.pop_back();
 
             ++reachable_count;
-            if (COMPLEMENTS) ++reachable_count;
+            // if (COMPLEMENTS) ++reachable_count;
 
             if (getSolution(ending[index]) == 1) continue;
             
@@ -227,9 +229,43 @@ inline void PathFinder<kmer_t>::callback(){
                 if (BitPrefix(kMers[i], K, depth) == next_overlap &&
                         getSolution(in_edges[i][depth]) == 1){
 
+                    // if (reachable_nodes.back() != index) reachable_nodes.push_back(index);
+                    
+                    if (COMPLEMENTS && visited[complement_index(i)]){
+                        // std::cerr << i << ' ' << complement_index(i) << std::endl;
+                        // previous[i] = std::make_pair(index, depth);
+                        // size_t current = i;
+                        // GRBLinExpr bad = 0;
+                        // size_t bad_count = 0;
+                        // while (current != complement_index(i)){
+                        //     auto p = previous[current];
+                        //     bad += in_edges[current][p.second];
+                        //     bad += out_edges[p.first][p.second];
+                        //     bad_count += 2;
+                        //     current = p.first;
+
+                        //     if (current == starting_index){
+                        //         bad_count = 0;
+                        //         break;
+                        //     }
+                        // }
+                        // if (bad_count > 0){
+                        //     addLazy(bad <= bad_count - 1);
+                        //     return;
+                        // }
+                        continue;
+                    }
+
                     reachable_nodes.push_back(i);
                     visited[i] = true;
-                    if (COMPLEMENTS) visited[complement_index(i)] = true;
+                    
+                    std::cerr << i << ' '; print_kmer(kMers[i], K, std::cerr, K);
+                    std::cerr << ' ' << (i + N / 2) % N << std::endl;
+
+                    if (COMPLEMENTS) previous[i] = std::make_pair(index, depth);
+                    // if (COMPLEMENTS) visited[complement_index(i)] = true;
+
+                    break;
                 }
             }
         }
@@ -287,8 +323,10 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
 
         // Construct the graph
         for (size_t i = 0; i < N; ++i){
-            if (starting[i].get(GRB_DoubleAttr_X) == 1 && start_index == N) start_index = i;
-            if (ending[i].get(GRB_DoubleAttr_X) == 1 && end_index == N){
+            if (starting[i].get(GRB_DoubleAttr_X) == 1 && start_index == N &&
+                    i != end_index + N / 2) start_index = i;
+            if (ending[i].get(GRB_DoubleAttr_X) == 1 && end_index == N &&
+                    i != start_index + N / 2){
                 end_index = i;
                 for (size_t d = 0; d < K; ++d){
                     if (in_edges[i][d].get(GRB_DoubleAttr_X) != 1) continue;
@@ -321,10 +359,21 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
 
         std::vector<bool> visited(N);
 
+        std::cerr << "C" << std::endl;
+
+        for (size_t i = 0; i < N; ++i){
+            std::cerr << i << ' '; print_kmer(kMers[i], K, std::cerr, K);
+            std::cerr << std::endl;
+        }
+        std::cerr << start_index << ' ' << end_index << std::endl;
+
         // Find walk from start to end
         Node node = start_node;
         size_t last_index = start_index;
         while (last_index != end_index){
+            std::cerr << last_index << ' '; print_kmer(kMers[last_index], K, std::cerr, K);
+            std::cerr << ' ' << (last_index + N / 2) % N;
+            std::cerr << ' ' << edges[node].second << ' ' << edges[node].first.size() << ' ' << node.second << std::endl;
 
             if (edges[node].second == 0) reached.push_back(node);
 
@@ -339,6 +388,8 @@ inline std::vector<size_t> PathFinder<kmer_t>::get_path(){
             last_index = index;
             node = p.first;
         }
+
+        std::cerr << "E" << std::endl;
 
         // Extend the walk wherever possible
         for (size_t i = 0; i < reached.size(); ++i){
