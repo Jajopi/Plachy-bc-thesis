@@ -98,8 +98,8 @@ template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
         size_t_max leaf_index, size_t_max priority_drop_limit) {
 
-    print_kmer(kMers[leaf_index], K, LOG_STREAM, K);
-    LOG_STREAM << ' ' << leaf_index << ' ' << priority_drop_limit << std::endl;
+    // print_kmer(kMers[leaf_index], K, LOG_STREAM, K);
+    // LOG_STREAM << ' ' << leaf_index << ' ' << priority_drop_limit << std::endl;
     
     if (priority_drop_limit == EXTENSION_PENALTY){
         Node& leaf_node = nodes[leaf_index];
@@ -156,8 +156,8 @@ inline bool CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::try_complete_leaf(
             ++node.leaf_range_begin;
         }
         if (node.leaf_range_begin != leaf_range_end){ // We found at least one suitable leaf to complete the current one
-            print_kmer(kMers[node.leaf_range_begin], K, LOG_STREAM, K);
-            LOG_STREAM << ' ' << node.leaf_range_begin << std::endl;
+            // print_kmer(kMers[node.leaf_range_begin], K, LOG_STREAM, K);
+            // LOG_STREAM << ' ' << node.leaf_range_begin << std::endl;
 
             nodes[node.leaf_range_begin].set_used();
             leaf_node.set_next(node.leaf_range_begin);
