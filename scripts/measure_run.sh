@@ -17,13 +17,17 @@ fi
 OUTPUT_FILE="results.txt"
 TIME_FORMAT_STRING="%U %M"
 
+<<<<<<< HEAD
+=======
+TEMP_DIR="$(mktemp -d)"
+trap '{ rm -rf -- "$TEMP_DIR"; }' EXIT
+>>>>>>> main
+
 TEMP_DIR="$(mktemp -d)"
 trap '{ rm -rf -- "$TEMP_DIR"; }' EXIT
 
-if [[ "$PROGRAM" == *"C"* ]]; then
-    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
-        ./kmercamel $ARGS > "$TEMP_DIR"/ms.txt
-else
+
+if [[ "$PROGRAM" == *"G"* ]]; then
     K=""
     COMPLEMENTS=false
     while [[ $# -gt 0 ]]; do
@@ -46,6 +50,13 @@ else
             ./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && \
             ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K" > "$TEMP_DIR"/ms.txt
     fi
+<<<<<<< HEAD
+
+else
+    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
+        ./kmercamel $ARGS > "$TEMP_DIR"/ms.txt
+=======
+>>>>>>> main
 fi
 
 L="$(cat "$TEMP_DIR"/ms.txt | tail -n 1 | wc -m)"

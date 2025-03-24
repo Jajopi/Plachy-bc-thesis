@@ -9,6 +9,7 @@ TEST_MODE="${4:-""}"
 # "N" for counting kmers check - slow
 # "C" for also running the computation with complements
 # "F" for output in one line without explanatory texts
+# "S" for only checking previously computed files
 
 DIR="parameters_testing_outputs"
 TIME_FORMAT_STRING="time:\t%U\nmemory:\t%M"
