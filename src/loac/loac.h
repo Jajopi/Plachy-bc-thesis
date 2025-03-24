@@ -332,6 +332,9 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
                 used[i] ||
                 components.are_connected(leaf_to_complete, i)) continue;
 
+            print_kmer(kMers[i], K, LOG_STREAM, K);
+            LOG_STREAM << ' ' << i << std::endl;
+
             used[i] = true;
             next[leaf_to_complete] = i;
             components.connect(leaf_to_complete, i); // Second one pointing at the first one
