@@ -33,20 +33,20 @@ class FailureIndex {
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
 
     void construct_index(){
-        FIRST_ROW_COUNT = log2(K);
-
         size_t_max N = kMers.size();
-        first_rows.resize(N * FIRST_ROW_COUNT);
         
-        search_speedup.resize(N + 1);
         SPEEDUP_DEPTH = log2(N) / 2;
+        size_t_max speedup_size = (size_t_max(1) << 2 * SPEEDUP_DEPTH);
+        search_speedup.resize(speedup_size + 1);
         size_t_max index = 0;
-        for (kmer_t k = 0; k < (kmer_t(1) << 2 * SPEEDUP_DEPTH); ++k){
+        for (kmer_t k = 0; k < kmer_t(speedup_size); ++k){
             search_speedup[k] = index;
             while (index < N && BitPrefix(kMers[index], K, SPEEDUP_DEPTH) == k) ++index;
         }
-        search_speedup[N] = N;
-    
+        search_speedup[speedup_size] = N;
+
+        FIRST_ROW_COUNT = log2(K);
+        first_rows.resize(N * FIRST_ROW_COUNT);
         for (size_t_max row = 0; row < FIRST_ROW_COUNT; ++row){
             for (size_t_max i = 0; i < N; ++i){
                 if (i > 0 && BitSuffix(kMers[i], K - row - 1) == BitSuffix(kMers[i - 1], K - row - 1)){
