@@ -25,8 +25,10 @@ class FailureIndex {
     size_t_max FIRST_ROW_COUNT;
     std::vector<size_t_max> first_rows;
     std::vector<std::unordered_map<size_t_max, size_t_max>> cached;
-    std::vector<size_t_max> cache_size;
     size_t_max CACHE_LIMIT;
+
+    std::vector<size_t_max> search_speedup;
+    size_t_max SPEEDUP_DEPTH;
 
     static inline size_t_max INVALID_NODE() { return std::numeric_limits<size_t_max>::max(); };
 
@@ -35,6 +37,15 @@ class FailureIndex {
 
         size_t_max N = kMers.size();
         first_rows.resize(N * FIRST_ROW_COUNT);
+        
+        search_speedup.resize(N + 1);
+        SPEEDUP_DEPTH = log2(N) / 2;
+        size_t_max index = 0;
+        for (kmer_t k = 0; k < (kmer_t(1) << 2 * SPEEDUP_DEPTH); ++k){
+            search_speedup[k] = index;
+            while (index < N && BitPrefix(kMers[index], K, SPEEDUP_DEPTH) == k) ++index;
+        }
+        search_speedup[N] = N;
     
         for (size_t_max row = 0; row < FIRST_ROW_COUNT; ++row){
             for (size_t_max i = 0; i < N; ++i){
@@ -48,13 +59,18 @@ class FailureIndex {
 
         CACHE_LIMIT = N / (K - FIRST_ROW_COUNT);
         cached.resize(K - FIRST_ROW_COUNT);
-        cache_size.resize(K - FIRST_ROW_COUNT);
     }
 
     size_t_max binary_search(size_t_max index, size_t_max depth){
         kmer_t searched = BitSuffix(kMers[index], depth);
-
         size_t_max begin = 0, end = N - 1;
+
+        if (depth >= SPEEDUP_DEPTH){
+            size_t_max speedup_index = BitPrefix(searched, depth, SPEEDUP_DEPTH);
+            begin = search_speedup[speedup_index];
+            end = search_speedup[speedup_index + 1];
+        }
+
         while (begin < end){
             size_t_max middle = (begin + end) / 2;
             kmer_t current = BitPrefix(kMers[middle], K, depth);
@@ -66,8 +82,11 @@ class FailureIndex {
         return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
     }
 public:
-    FailureIndex(const std::vector<kmer_t> &kmers, size_t_max k) : kMers(kmers), N(kmers.size()), K(k) {
+    FailureIndex(const std::vector<kmer_t> &kmers, size_t_max k) :
+            kMers(kmers), N(kmers.size()), K(k) {
+        std::cerr << "Constructing index..."; std::cerr.flush();
         construct_index();
+        std::cerr << std::endl;
     }
 
     size_t_max find_first_failure_leaf(size_t_max index, size_t_max depth){
@@ -86,10 +105,8 @@ public:
         
         c.emplace(std::make_pair(index, result));
 
-        auto cs = cache_size[K - FIRST_ROW_COUNT - depth - 1];
-        ++cs;
-        if (cs >= CACHE_LIMIT){
-            std::cerr << ' ' << cs << std::endl;
+        if (c.size() >= CACHE_LIMIT){
+            std::cerr << ' ' << c.size() << std::endl;
             c.clear();
         }
 
@@ -130,6 +147,8 @@ class LeafOnlyAC {
     void squeeze_uncompleted_leaves(std::vector<size_t_max>& unclompleted_leaves);
     void set_backtrack_path_for_leaf(size_t_max origin_leaf, size_t_max next_leaf);
 public:
+    std::ostream& LOG_STREAM = std::cerr;
+
     LeafOnlyAC(const std::vector<kmer_t>& kmers, size_t_max k, bool complements = false) :
         kMers(kmers), K(k), N(kMers.size()), COMPLEMENTS(complements), fi(kMers, K) {
             find_complements();
@@ -144,8 +163,6 @@ public:
                                size_t_max precision);
     void compute_result();
     size_t_max print_result(std::ostream& os);
-
-    std::ostream& LOG_STREAM = std::cerr;
 };
 
 // Constructing
