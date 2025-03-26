@@ -13,7 +13,7 @@ RECOMPUTE_ALL = False
 
 KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
 ALG_OLD = "global"
-ALGORITHMS = [ALG_OLD, "csac", "loac"]
+ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 def compute_objective(result):
     return result[0] + result[1] * math.log2(result[0])

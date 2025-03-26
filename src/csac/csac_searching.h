@@ -10,6 +10,7 @@
 #include "../kmers.h"
 #include "csac_construction.h"
 
+#define RANDOM_SEED 0
 #define MAX_COUNT_WIDTH 12
 #define MAX_ITERS_WIDTH 3
 
@@ -33,7 +34,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
 
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
-    std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(0));
+    std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(RANDOM_SEED));
     size_t_max next_preffered_leaf = INVALID_LEAF();
 
     size_t_max max_priority_drop = (K - 1) * EXTENSION_PENALTY + RUN_PENALTY;

@@ -147,7 +147,7 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::construct_graph() {
     }
     size_t_max node_count = 0;
 
-    LOG_STREAM << K << " --> " << DEPTH_CUTOFF << ": "
+    LOG_STREAM << "Constructing tree... " << K << " --> " << DEPTH_CUTOFF << ": "
         << std::setfill(' ') << std::setw(MAX_DEPTH_WIDTH) << K; LOG_STREAM.flush();
 
     // Add other nodes

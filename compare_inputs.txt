@@ -13,5 +13,4 @@ sars-cov-2_pangenome_gisaid.unitigs_k128.fa     96      11
 celegans.fa                                     64      16
 dmelanogaster.fna                               64      16
 
-# takes too long
-# human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa 32
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      11
