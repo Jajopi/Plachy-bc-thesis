@@ -6,13 +6,12 @@ touch results.txt
 
 ARGS="$*"
 
-PROGRAM="G"
-if [[ "$*" == *"csac"* ]]
+PROGRAM="-"
+if [[ "$*" == *"global"* ]]
 then
-    PROGRAM="C"
+    PROGRAM="G"
 fi
 # "G" - global greedy
-# "C" - csac
 
 OUTPUT_FILE="results.txt"
 TIME_FORMAT_STRING="%U %M"
