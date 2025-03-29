@@ -2,6 +2,8 @@
 
 import subprocess
 import math
+# from threading import Thread
+from concurrent.futures import ThreadPoolExecutor, wait
 
 INPUT_DIR = "data"
 INPUT_FILE_NAME = "compare_inputs.txt"
@@ -14,6 +16,9 @@ RECOMPUTE_ALL = False
 KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
 ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
+
+MULITHREADING = True
+MAX_WORKERS = 16
 
 def compute_objective(result):
     return result[0] + result[1] * math.log2(result[0])
@@ -94,7 +99,8 @@ def load_all_results(file_name):
 
 def compute_missing():
     results = load_all_results(RESULTS_FILE_NAME)
-
+    
+    thread_inputs = []
     for inp in load_all_inputs(INPUT_FILE_NAME):
         limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
         run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else 0
@@ -106,7 +112,18 @@ def compute_missing():
                     if (alg, inp, k, complements) in results.keys():
                         continue
 
-                    run_with_parameters(inp, alg, k, complements, run_penalty)
+                    if MULITHREADING:
+                        thread_inputs.append((inp, alg, k, complements, run_penalty))
+                        # threads.append(Thread(target=run_with_parameters, args=(inp, alg, k, complements, run_penalty)))
+                    else: run_with_parameters(inp, alg, k, complements, run_penalty)
+    if MULITHREADING:
+        print(len(thread_inputs))
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as exe:
+            futures = [exe.submit(run_with_parameters, *i) for i in thread_inputs]
+            wait(futures)
+    print("Done")
+                
+
 
 if __name__ == "__main__":
     compute_missing()
