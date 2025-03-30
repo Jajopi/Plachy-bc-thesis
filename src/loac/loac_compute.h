@@ -229,11 +229,12 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
         priority_drop_limit <= max_priority_drop;
         ++priority_drop_limit){
             size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
-            LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaf_count
+
+            for (size_t_max x = 0; x < MAX_COUNT_WIDTH + 1 + MAX_ITERS_WIDTH; ++x) LOG_STREAM << '\b';
+            LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaf_count
             << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations--; LOG_STREAM.flush();
             
         if (uncompleted_leaf_count < SEARCH_CUTOFF) break;
-        size_t_max unc = uncompleted_leaf_count;
         
         for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
             size_t_max leaf_index = uncompleted_leaves[i];
@@ -250,21 +251,12 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
                 bool result = try_complete_leaf(leaf_index, priority_drop_limit);
                 if (result){
                     next_preffered_leaf = next[leaf_index];
-
-                    if (remaining_iterations <= 5){
-                        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << unc--
-                        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
-                    }
                 }
             }
             else{
                 if (leaf_index == INVALID_NODE()) continue;
                 if (next[leaf_index] != INVALID_NODE()){
                     uncompleted_leaves[i] = INVALID_NODE();
-                    if (remaining_iterations <= 5){
-                        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << unc--
-                        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
-                    }
                     continue;
                 }
     
@@ -272,11 +264,6 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
                 if (result){
                     next_preffered_leaf = next[leaf_index];
                     uncompleted_leaves[i] = INVALID_NODE();
-
-                    if (remaining_iterations <= 5){
-                        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << unc--
-                        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
-                    }
                 }
             }
             
@@ -285,7 +272,8 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
         squeeze_uncompleted_leaves(uncompleted_leaves);
     }
 
-    LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaves.size()
+    for (size_t_max x = 0; x < MAX_COUNT_WIDTH + 1 + MAX_ITERS_WIDTH; ++x) LOG_STREAM << '\b';
+    LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaves.size()
         << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
 
     COMPUTED_RESULT = true;

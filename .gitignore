@@ -7,7 +7,7 @@ outputs
 data/big
 count_kmers.py
 count_noncomplement_kmers.py
-parameters_testing_outputs
+testing_outputs
 __pycache__
 results.txt
 figures
