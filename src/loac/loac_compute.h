@@ -140,6 +140,7 @@ class LeafOnlyAC {
     std::vector<size_t_max> previous;
     std::vector<size_t_max> next;
     std::vector<size_t_max> remaining_priorities;
+    std::vector<size_t_max> skip_to;
     std::vector<bool> used;
 
     bool try_complete_leaf(size_t_max leaf_to_connect, size_t_max priority_drop_limit);
@@ -209,6 +210,8 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
     previous.resize(N, INVALID_NODE());
     next.resize(N, INVALID_NODE());
     remaining_priorities.resize(N, 0);
+    skip_to.resize(N);
+    for (size_t_max i = 0; i < N; ++i) skip_to[i] = i + 1;
     used.resize(N, false);
 
     std::vector<size_t_max> uncompleted_leaves(N);
@@ -230,6 +233,7 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
             << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations--; LOG_STREAM.flush();
             
         if (uncompleted_leaf_count < SEARCH_CUTOFF) break;
+        size_t_max unc = uncompleted_leaf_count;
         
         for (size_t_max i = 0; i < uncompleted_leaf_count; ++i){
             size_t_max leaf_index = uncompleted_leaves[i];
@@ -239,17 +243,28 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
                 --i;
                 next_preffered_leaf = INVALID_NODE();
 
-                if (next[leaf_index] != INVALID_NODE()) continue;
+                if (next[leaf_index] != INVALID_NODE()){
+                    continue;
+                }
     
                 bool result = try_complete_leaf(leaf_index, priority_drop_limit);
                 if (result){
                     next_preffered_leaf = next[leaf_index];
+
+                    if (remaining_iterations <= 5){
+                        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << unc--
+                        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
+                    }
                 }
             }
             else{
                 if (leaf_index == INVALID_NODE()) continue;
                 if (next[leaf_index] != INVALID_NODE()){
                     uncompleted_leaves[i] = INVALID_NODE();
+                    if (remaining_iterations <= 5){
+                        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << unc--
+                        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
+                    }
                     continue;
                 }
     
@@ -257,6 +272,11 @@ inline void LeafOnlyAC<kmer_t, size_t_max>::compute_result() {
                 if (result){
                     next_preffered_leaf = next[leaf_index];
                     uncompleted_leaves[i] = INVALID_NODE();
+
+                    if (remaining_iterations <= 5){
+                        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << unc--
+                        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
+                    }
                 }
             }
             
@@ -367,12 +387,31 @@ inline bool LeafOnlyAC<kmer_t, size_t_max>::try_complete_leaf(
         }
 
         for (size_t_max i = leaf_index; i < N &&
-            BitPrefix(kMers[leaf_index], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
-            ++i){
+                BitPrefix(kMers[leaf_index], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
+                ++i){
             if (i == leaf_to_complete) continue;
 
-            if (remaining_priorities[i] >= priority) continue;
-            remaining_priorities[i] = priority;
+            if (priority_drop_limit >= RUN_PENALTY){
+                if (remaining_priorities[i] >= priority){
+                    std::vector<size_t_max> skipped;
+                    size_t_max j = i;
+                    while (j < N && remaining_priorities[j] >= priority){
+                        skipped.push_back(j);
+                        j = skip_to[j];
+                    }
+                    for (size_t_max s : skipped){
+                        skip_to[s] = j;
+                    }
+                    i = j;
+                    continue;
+                }
+                skip_to[i] = i + 1;
+                remaining_priorities[i] = priority;
+            }
+            else {
+                if (remaining_priorities[i] >= priority) continue;
+                remaining_priorities[i] = priority;
+            }
 
             previous[i] = last_leaf;
             push_failure_of_node_into_stack(priority, i, K, i); // Add failure of that leaf
