@@ -35,14 +35,11 @@ if [[ "$PROGRAM" == *"G"* ]]; then
     done
 
     if [[ "$COMPLEMENTS" = true ]]; then
-        /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
-            ./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && \
-            ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K" -c > "$TEMP_DIR"/ms.txt
+        COMMAND="./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K" -c > "$TEMP_DIR"/ms.txt"
     else
-        /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
-            ./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && \
-            ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K" > "$TEMP_DIR"/ms.txt
+        COMMAND="./kmercamel $ARGS > "$TEMP_DIR"/ms_raw.txt && ./kmercamel optimize -p "$TEMP_DIR"/ms_raw.txt -a runs -k "$K"    > "$TEMP_DIR"/ms.txt"
     fi
+    /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$DIR"/resources.txt /bin/sh -c "$COMMAND"
 else
     /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/resources.txt \
         ./kmercamel $ARGS > "$TEMP_DIR"/ms.txt
