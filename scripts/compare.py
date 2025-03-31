@@ -89,8 +89,8 @@ def load_all_results(file_name):
     for result in results: # compute relative objective function results
         header, data = result.split(":=")
         key = parse_header(header)
-        alg, inp, k, c = key
-        done[key][LABELS[5]] = (done[key][LABELS[4]] / done[(ALG_OLD, inp, k, c)][LABELS[4]]
+        alg, inp, k, c, rp = key
+        done[key][LABELS[5]] = (done[key][LABELS[4]] / done[(ALG_OLD, inp, k, c, None)][LABELS[4]]
                                 if alg != ALG_OLD
                                 else 1)
 

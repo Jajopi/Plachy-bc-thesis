@@ -10,6 +10,7 @@ count_noncomplement_kmers.py
 testing_outputs
 __pycache__
 results.txt
+results_penalties.txt
 figures
 .gurobi_lib
 src/ilp/gurobi
