@@ -14,7 +14,7 @@ then
 fi
 # "G" - global greedy
 
-TIME_FORMAT_STRING="%U %M"
+TIME_FORMAT_STRING="%U\t%M"
 
 TEMP_DIR="$(mktemp -d)"
 trap '{ rm -rf -- "$TEMP_DIR"; }' EXIT

@@ -22,9 +22,9 @@ def run_command(command):
     print(*command)
     subprocess.run(command, text=True, check=True)
 
-def run_with_parameters(input_name, algorithm, k, complements=False, run_penalty=None):
+def run_with_parameters(input_name, algorithm, k, complements=False, run_penalty=None, result_file=RESULTS_FILE_NAME):
     run_command(["./scripts/measure_run.sh",
-                 RESULTS_FILE_NAME,
+                 result_file,
                  "-p", INPUT_DIR + "/" + input_name,
                  "-k", str(k),
                  "-a", algorithm,
@@ -59,8 +59,8 @@ def parse_header(header):
         return (alg, inp, k, c, run_p)
 
 def compute_objective(length, runs):
-    return int(length + runs * math.log2(length)) # TODO switch from RLE to EF penalty
-    # return int(length + runs * (3 + math.log2(length / runs)))
+    # return int(length + runs * math.log2(length)) # TODO switch from RLE to EF penalty
+    return int(length + runs * (3 + math.log2(length / runs)))
 
 def parse_data(input):
     data = dict()

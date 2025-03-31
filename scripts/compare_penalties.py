@@ -6,10 +6,9 @@ import math
 from concurrent.futures import ThreadPoolExecutor, wait
 from compare import *
 
-RESULTS_FILE_NAME = "results_penalties.txt"
-
 KS = [31]
-RUN_PENALTIES = [0, 1, 5, 10, 15, 20, 25, 30]
+RUN_PENALTIES = list(range(KS[0] + 1))
+RESULTS_FILE_NAME = "results_penalty.txt"
 
 def run_command(command):
     print(*command)
@@ -20,17 +19,23 @@ def compute_missing():
     
     thread_inputs = []
     for inp in load_all_inputs(INPUT_FILE_NAME)[:-3]:
+        inp = inp.split()[0]
         print(inp)
-        for run_penalty in RUN_PENALTIES:
-            for alg in ALGORITHMS:
+        for alg in ALGORITHMS:
+            for run_penalty in RUN_PENALTIES:
+                rp = run_penalty if alg != ALG_OLD else None
                 k = KS[0]
                 for complements in (False, True):
-                    if (alg, inp, k, complements, run_penalty) in results.keys():
+                    if (alg, inp, k, complements, rp) in results.keys():
                         continue
 
+                    args = (inp, alg, k, complements, rp, RESULTS_FILE_NAME)
                     if MULITHREADING:
-                        thread_inputs.append((inp, alg, k, complements, run_penalty))
-                    else: run_with_parameters(inp, alg, k, complements, run_penalty)
+                        thread_inputs.append(args)
+                        # print(args)
+                    else: run_with_parameters(*args)
+                if alg == ALG_OLD: break # only count the same thing once
+
     if MULITHREADING:
         print(len(thread_inputs))
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as exe:
