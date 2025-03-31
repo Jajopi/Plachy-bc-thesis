@@ -6,17 +6,18 @@ import math
 from concurrent.futures import ThreadPoolExecutor, wait
 
 INPUT_DIR = "data"
-INPUT_FILE_NAME = "compare_inputs.txt"
-RESULTS_FILE_NAME = "results.txt"
+INPUT_FILE_NAME = "compare_run_penalties.txt"
+RESULTS_FILE_NAME = "results_penalties.txt"
 LABELS = ["length", "runs", "time", "memory", "objective", "relative"] # mandatory order
 FIG_DIR = "figures"
 
-KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
+KS = [31]
+RUN_PENALTIES = [0, 1, 5, 10, 15, 20, 25, 30]
 ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 MULITHREADING = True
-MAX_WORKERS = 16
+MAX_WORKERS = 8
 
 def run_command(command):
     print(*command)
@@ -101,12 +102,9 @@ def compute_missing():
     
     thread_inputs = []
     for inp in load_all_inputs(INPUT_FILE_NAME):
-        limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
-        run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else None
-        inp = inp.split()[0]
-        for alg in ALGORITHMS:
-            for k in KS:
-                if k >= limit: continue
+        for run_penalty in RUN_PENALTIES:
+            for alg in ALGORITHMS:
+                k = KS[0]
                 for complements in (False, True):
                     if (alg, inp, k, complements, run_penalty) in results.keys():
                         continue

@@ -1,0 +1,8 @@
+# comments start with #
+
+spneumoniae.fa
+ecoli.fna
+scerevisiae.fna
+ngono_pangenome_RASE_db.unitigs_k128.fa
+spneumo_pangenome_RASE_db.unitigs_k128.fa
+sars-cov-2_pangenome_gisaid.unitigs_k128.fa

@@ -2,7 +2,8 @@
 
 set -ueo pipefail
 
-touch results.txt
+OUTPUT_FILE="$1"; shift
+touch "$OUTPUT_FILE"
 
 ARGS="$*"
 
@@ -13,7 +14,6 @@ then
 fi
 # "G" - global greedy
 
-OUTPUT_FILE="results.txt"
 TIME_FORMAT_STRING="%U %M"
 
 TEMP_DIR="$(mktemp -d)"
