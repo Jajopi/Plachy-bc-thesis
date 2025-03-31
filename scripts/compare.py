@@ -27,13 +27,13 @@ def run_command(command):
     print(*command)
     subprocess.run(command, text=True, check=True)
 
-def run_with_parameters(input_name, algorithm, k, complements=False, run_penalty=0):
+def run_with_parameters(input_name, algorithm, k, complements=False, run_penalty=None):
     run_command(["./scripts/measure_run.sh",
                  "-p", INPUT_DIR + "/" + input_name,
                  "-k", str(k),
                  "-a", algorithm,
                  "-c" if complements else "  ",
-                 f"--run-penalty {run_penalty}" if algorithm != ALG_OLD and run_penalty != 0 else ""
+                 f"--run-penalty {run_penalty}" if algorithm != ALG_OLD and run_penalty is not None else ""
                 ])
 
 def load_all_inputs(file_name):
@@ -103,7 +103,7 @@ def compute_missing():
     thread_inputs = []
     for inp in load_all_inputs(INPUT_FILE_NAME):
         limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
-        run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else 0
+        run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else None
         inp = inp.split()[0]
         for alg in ALGORITHMS:
             for k in KS:
@@ -114,7 +114,6 @@ def compute_missing():
 
                     if MULITHREADING:
                         thread_inputs.append((inp, alg, k, complements, run_penalty))
-                        # threads.append(Thread(target=run_with_parameters, args=(inp, alg, k, complements, run_penalty)))
                     else: run_with_parameters(inp, alg, k, complements, run_penalty)
     if MULITHREADING:
         print(len(thread_inputs))

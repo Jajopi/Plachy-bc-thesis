@@ -12,6 +12,7 @@
 #define RESERVED_MEMORY_GB 5
 #define RESERVED_MEMORY_FRACTION 1 / 8
 #define DEFAULT_PRECISION 100
+#define DEFAULT_RUN_PENALTY std::numeric_limits<size_t>::max()
 
 // getting available memory according to https://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
 #ifdef __unix__
@@ -91,7 +92,7 @@ void compute_with_csac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     csac.construct_graph();
     csac.convert_to_searchable_representation();
 
-    if (run_penalty == 0) run_penalty = log2(kMers.size());
+    if (run_penalty == DEFAULT_RUN_PENALTY) run_penalty = log2(kMers.size());
     if (precision == 0) precision = DEFAULT_PRECISION;
     if (precision > sizeof(size_t_max) * 8) precision = sizeof(size_t_max) * 8;
     csac.set_search_parameters(run_penalty, 1, precision);
@@ -130,21 +131,21 @@ void set_limit_and_compute_with_csac(std::vector<kmer_t>& kMers, std::ostream& o
 
 template <typename kmer_t>
 void CSAC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0);
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0);
 
 void CSAC(std::vector<kmer32_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
     set_limit_and_compute_with_csac<kmer32_t, 4>(kMers, os, k, complements, run_penalty, precision);
 }
 void CSAC(std::vector<kmer64_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
     set_limit_and_compute_with_csac<kmer64_t, 5>(kMers, os, k, complements, run_penalty, precision);
 }
 void CSAC(std::vector<kmer128_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
     set_limit_and_compute_with_csac<kmer128_t, 6>(kMers, os, k, complements, run_penalty, precision);
 }
 void CSAC(std::vector<kmer256_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
     set_limit_and_compute_with_csac<kmer256_t, 7>(kMers, os, k, complements, run_penalty, precision);
 }

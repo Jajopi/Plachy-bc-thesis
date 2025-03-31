@@ -6,12 +6,17 @@ ALG="$1"
 INPUT="$2"
 K="$3"
 TEST_MODE="${4:-""}"
+RUN_PENALTY="${5:-""}"
+
 # TEST_MODE:
 # "N" for counting kmers check - with python script, slow
 # "C" for also running the computation with complements
 # "F" for output in one line without explanatory texts
 # "L" for using local directory instead of temp one
 # "S" for only checking previously computed files (only when L was used before)
+
+RUN_PENALTY_STRING="--run-penalty $RUN_PENALTY"
+if [[ -z "$RUN_PENALTY" ]]; then RUN_PENALTY_STRING=""; fi
 
 if [[ "$TEST_MODE" == *"L"* ]] || [[ "$TEST_MODE" == *"S"* ]]; then
     TEMP_DIR="testing_outputs"
@@ -29,13 +34,13 @@ fi
 
 if [[ "$TEST_MODE" != *"S"* ]]; then
     /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/"$ALG"_time.txt \
-        ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" > "$TEMP_DIR"/"$ALG".txt
+        ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" $RUN_PENALTY_STRING > "$TEMP_DIR"/"$ALG".txt
     COMMAND="./kmercamel -p "$INPUT" -k "$K" > "$TEMP_DIR"/gg_raw.txt && ./kmercamel optimize -p "$TEMP_DIR"/gg_raw.txt -a runs -k "$K" > "$TEMP_DIR"/gg.txt"
     /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/gg_time.txt /bin/sh -c "$COMMAND"
 
     if [[ "$TEST_MODE" == *"C"* ]]; then        
         /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/"$ALG"_c_time.txt \
-            ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" -c > "$TEMP_DIR"/"$ALG"_c.txt
+            ./kmercamel -p "$INPUT" -k "$K" -a "$ALG" -c $RUN_PENALTY_STRING > "$TEMP_DIR"/"$ALG"_c.txt
         COMMAND="./kmercamel -p "$INPUT" -k "$K" -c > "$TEMP_DIR"/gg_c_raw.txt && ./kmercamel optimize -p "$TEMP_DIR"/gg_c_raw.txt -a runs -k "$K" -c > "$TEMP_DIR"/gg_c.txt"
         /usr/bin/time -f "$TIME_FORMAT_STRING" -o "$TEMP_DIR"/gg_c_time.txt /bin/sh -c "$COMMAND"
     fi

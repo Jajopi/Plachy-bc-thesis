@@ -161,12 +161,12 @@ int main(int argc, char **argv) {
     bool d_set = false;
     bool lower_bound = false;
     int opt;
-    size_t run_penalty = 0, precision = 0;
+    size_t run_penalty = DEFAULT_RUN_PENALTY, precision = 0;
 
     static struct option long_options[] = {
         {"run-penalty",    required_argument, 0,  'x' },
         {"precision",      required_argument, 0,  'y' },
-        {0,                     0,                 0,  0   }
+        {0,                0,                 0,  0   }
     };
     int long_index = 0;
     try {
@@ -253,11 +253,12 @@ int main(int argc, char **argv) {
     } else if (lower_bound && algorithm != "global") {
         std::cerr << "Lower bound computation supported only for hash table global." << std::endl;
         return Help();
-    } else if ((algorithm != "csac" && algorithm != "loac") && (run_penalty != 0 || precision != 0)){
+    } else if ((algorithm != "csac" && algorithm != "loac") && (run_penalty != DEFAULT_RUN_PENALTY || precision != 0)){
+        std::cerr << algorithm << std::endl;
         std::cerr << "Run penalty and Precision are only valid when using CSAC or LOAC algorithm.";
         return Help();
-    } else if (run_penalty < 1 && run_penalty != 0){
-        std::cerr << "Run penalty has to be at least one.";
+    } else if (run_penalty < 0){
+        std::cerr << "Run penalty cannot be negative.";
         return Help();
     } else if (precision < 1 && precision != 0){
         std::cerr << "Precision has to be at least one.";

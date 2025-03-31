@@ -8,6 +8,7 @@
 #include "loac_compute.h"
 
 #define DEFAULT_PRECISION 100
+#define DEFAULT_RUN_PENALTY std::numeric_limits<size_t>::max()
 
 template <typename kmer_t, typename size_t_max>
 void compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
@@ -18,7 +19,7 @@ void compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     auto loac = LeafOnlyAC<kmer_t, size_t_max>(
         kMers, size_t_max(k), complements);
 
-    if (run_penalty == 0) run_penalty = log2(kMers.size());
+    if (run_penalty == DEFAULT_RUN_PENALTY) run_penalty = log2(kMers.size());
     if (precision == 0) precision = DEFAULT_PRECISION;
     if (precision > sizeof(size_t_max) * 8) precision = sizeof(size_t_max) * 8;
 
@@ -60,17 +61,17 @@ void set_limit_and_compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& o
 
 template <typename kmer_t>
 void LOAC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0);
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0);
 
 void LOAC(std::vector<kmer64_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
     set_limit_and_compute_with_loac<kmer64_t>(kMers, os, k, complements, run_penalty, precision);
 }
 void LOAC(std::vector<kmer128_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
     set_limit_and_compute_with_loac<kmer128_t>(kMers, os, k, complements, run_penalty, precision);
 }
 void LOAC(std::vector<kmer256_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = 0, size_t precision = 0) {
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
     set_limit_and_compute_with_loac<kmer256_t>(kMers, os, k, complements, run_penalty, precision);
 }
