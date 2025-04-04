@@ -118,7 +118,7 @@ def compute_missing():
     if MULITHREADING:
         print(len(thread_inputs))
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as exe:
-            futures = [exe.submit(run_with_parameters, *i) for i in thread_inputs]
+            futures = [exe.submit(run_with_parameters, *i) for i in reversed(thread_inputs)]
             wait(futures)
     print("Done")
 

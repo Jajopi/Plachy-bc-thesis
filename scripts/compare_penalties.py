@@ -10,6 +10,8 @@ KS = [31]
 RUN_PENALTIES = list(range(KS[0] + 1))
 RESULTS_FILE_NAME = "results_penalty.txt"
 
+MAX_WORKERS = 8
+
 def run_command(command):
     print(*command)
     subprocess.run(command, text=True, check=True)

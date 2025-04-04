@@ -18,7 +18,7 @@ def plot():
     fig.set_figwidth(18)
     fig.suptitle(f"Optimal run penalty from penalty: {LAST_PENALTY_TYPE}")
 
-    alg = ALG_NEW
+    alg = ALGORITHMS[1]
     for complements in (False, True):
         for inp in load_all_inputs(INPUT_FILE_NAME):
             manual_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else 0
@@ -26,10 +26,10 @@ def plot():
 
             ys, xs, yys = [], [], []
             for k in KS:
-                if not (alg, inp, k, complements) in results.keys(): continue
+                if not (alg, inp, k, complements, manual_penalty) in results.keys(): continue
                 xs.append(k)
 
-                d = results[(alg, inp, k, complements)]
+                d = results[(alg, inp, k, complements, manual_penalty)]
                 ys.append(
                     3 + math.log2(d[LABELS[0]] / d[LABELS[1]])
                 )
@@ -57,5 +57,4 @@ def plot():
         fig.savefig(file_name)
 
 if __name__ == "__main__":
-    # compute_missing()
     plot()

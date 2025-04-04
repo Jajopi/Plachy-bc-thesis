@@ -15,7 +15,7 @@ celegans.fa                                     64      14
 dmelanogaster.fna                               64      14
 
 # optimal penalties (for k=31) not yet computed
-human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      7
-ecoli_pangenome_661k_HQ.unitigs_k128.fa         32      7
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      9
 human_genome_assembly_chm13.v2.0.fa             32      12
+ecoli_pangenome_661k_HQ.unitigs_k128.fa         32      9
 
