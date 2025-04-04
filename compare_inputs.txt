@@ -2,15 +2,20 @@
 # first number indicates values of k (>= than) that won't be computed (default 128)
 
 # second number is the custom run penalty to be used
-# (default = log2(kmer count), used when 0 or none value supplied)
+# (default = log2(kmer count), used when no value supplied)
 
-spneumoniae.fa                                  128     18
-ecoli.fna                                       128     18
-scerevisiae.fna                                 128     18
-ngono_pangenome_RASE_db.unitigs_k128.fa         128     11
-spneumo_pangenome_RASE_db.unitigs_k128.fa       128     11
-sars-cov-2_pangenome_gisaid.unitigs_k128.fa     96      11
-celegans.fa                                     64      16
-dmelanogaster.fna                               64      16
+# optimal penalties (for k=31) computed
+spneumoniae.fa                                  128     15
+ecoli.fna                                       128     16
+scerevisiae.fna                                 128     15
+ngono_pangenome_RASE_db.unitigs_k128.fa         128     9
+spneumo_pangenome_RASE_db.unitigs_k128.fa       128     9
+sars-cov-2_pangenome_gisaid.unitigs_k128.fa     96      10
+celegans.fa                                     64      14
+dmelanogaster.fna                               64      14
 
-human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      11
+# optimal penalties (for k=31) not yet computed
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      7
+ecoli_pangenome_661k_HQ.unitigs_k128.fa         32      7
+human_genome_assembly_chm13.v2.0.fa             32      12
+

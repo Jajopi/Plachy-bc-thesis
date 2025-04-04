@@ -4,7 +4,7 @@ set -ueo pipefail
 
 TARGET="kam"
 TARGET_DIR="/home/janci/bakalarka/"
-DEFAULT_PARAMS="src scripts Makefile create-version.sh compare_inputs.txt compare_run_penalties.txt"
+DEFAULT_PARAMS="src scripts Makefile create-version.sh compare_inputs.txt compare_run_penalties.txt verify.py convert_superstring.py"
 # does not include "data" which can be unpractically big and does not change often
 
 ALL_PARAMS="$*"

@@ -16,7 +16,7 @@ ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 MULITHREADING = True
-MAX_WORKERS = 16
+MAX_WORKERS = 2
 
 def run_command(command):
     print(*command)
@@ -105,15 +105,16 @@ def compute_missing():
         run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else None
         inp = inp.split()[0]
         for alg in ALGORITHMS:
+            rp = run_penalty if alg != ALG_OLD else None
             for k in KS:
                 if k >= limit: continue
                 for complements in (False, True):
-                    if (alg, inp, k, complements, run_penalty) in results.keys():
+                    if (alg, inp, k, complements, rp) in results.keys():
                         continue
 
                     if MULITHREADING:
-                        thread_inputs.append((inp, alg, k, complements, run_penalty))
-                    else: run_with_parameters(inp, alg, k, complements, run_penalty)
+                        thread_inputs.append((inp, alg, k, complements, rp))
+                    else: run_with_parameters(inp, alg, k, complements, rp)
     if MULITHREADING:
         print(len(thread_inputs))
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as exe:

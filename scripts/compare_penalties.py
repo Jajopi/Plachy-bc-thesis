@@ -18,7 +18,7 @@ def compute_missing():
     results = load_all_results(RESULTS_FILE_NAME)
     
     thread_inputs = []
-    for inp in load_all_inputs(INPUT_FILE_NAME)[:-3]:
+    for inp in load_all_inputs(INPUT_FILE_NAME):
         inp = inp.split()[0]
         print(inp)
         for alg in ALGORITHMS:
