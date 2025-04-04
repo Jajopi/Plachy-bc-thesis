@@ -138,8 +138,8 @@ char to_lower(char c){
     return c & 95;
 }*/
 
-template <typename kmer_t, typename size_t_max>
-void print_kmer_masked(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max prefix){
+template <typename kmer_t, typename size_k_max>
+void print_kmer_masked(kmer_t kmer, size_k_max k, std::ostream& os, size_k_max prefix){
     os << letters[(uint64_t)BitPrefix(kmer, k, 1)];
     if (prefix > 20){
         std::string unmaskedNucleotides = NumberToKMer(BitPrefix(kmer, k - 1, prefix - 1), prefix - 1);
@@ -147,24 +147,24 @@ void print_kmer_masked(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max p
         os << unmaskedNucleotides;
     }
     else {
-        for (size_t_max c = 1; c < prefix; ++c){
+        for (size_k_max c = 1; c < prefix; ++c){
             os << to_lower(NucleotideAtIndex(kmer, k, c));
         }
     }
 }
 
-template <typename kmer_t, typename size_t_max>
-void print_kmer(kmer_t kmer, size_t_max k, std::ostream& os, size_t_max prefix){
+template <typename kmer_t, typename size_k_max>
+void print_kmer(kmer_t kmer, size_k_max k, std::ostream& os, size_k_max prefix){
     os << letters[(uint64_t)BitPrefix(kmer, k, 1)];
-    for (size_t_max c = 1; c < prefix; ++c){
+    for (size_k_max c = 1; c < prefix; ++c){
         os << NucleotideAtIndex(kmer, k, c);
     }
 }
 
-template<typename kmer_t, typename size_t_max>
-size_t_max max_overlap_length(kmer_t kmer1, kmer_t kmer2, size_t_max k){
+template<typename kmer_t, typename size_k_max>
+size_k_max max_overlap_length(kmer_t kmer1, kmer_t kmer2, size_k_max k){
     if (BitSuffix(kmer1, k - 1) == BitPrefix(kmer2, k, k - 1)) return k - 1;
-    for (size_t_max ov = k - 2; ov > 0; --ov){
+    for (size_k_max ov = k - 2; ov > 0; --ov){
         if (BitSuffix(kmer1, ov) == BitPrefix(kmer2, k, ov)) return ov;
     }
     return 0;
