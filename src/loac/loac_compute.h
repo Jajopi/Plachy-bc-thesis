@@ -26,8 +26,6 @@ class FailureIndex {
     
     size_n_max FIRST_ROW_COUNT;
     std::vector<size_n_max> first_rows;
-    std::vector<std::unordered_map<size_n_max, size_n_max>> cached;
-    size_n_max CACHE_LIMIT;
 
     std::vector<size_n_max> search_speedup;
     size_n_max SPEEDUP_DEPTH;
@@ -47,7 +45,7 @@ class FailureIndex {
         }
         search_speedup[speedup_size] = N;
 
-        FIRST_ROW_COUNT = log2(K);
+        FIRST_ROW_COUNT = 1;
         first_rows.resize(N * FIRST_ROW_COUNT);
         for (size_n_max row = 0; row < FIRST_ROW_COUNT; ++row){
             for (size_n_max i = 0; i < N; ++i){
@@ -58,19 +56,20 @@ class FailureIndex {
                 first_rows[row * N + i] = binary_search(i, K - row - 1);
             }
         }
-
-        CACHE_LIMIT = N / (K - FIRST_ROW_COUNT);
-        cached.resize(K - FIRST_ROW_COUNT);
     }
 
-    size_n_max binary_search(size_n_max index, size_n_max depth){
+    size_n_max binary_search(size_n_max index, size_k_max depth){
         kmer_t searched = BitSuffix(kMers[index], depth);
         size_n_max begin = 0, end = N - 1;
 
         if (depth >= SPEEDUP_DEPTH){
             size_n_max speedup_index = BitPrefix(searched, depth, SPEEDUP_DEPTH);
             begin = search_speedup[speedup_index];
-            end = search_speedup[speedup_index + 1];
+            end = search_speedup[speedup_index + 1] - 1;
+        }
+        else {
+            begin = search_speedup[searched << 2 * (SPEEDUP_DEPTH - depth)];
+            end = search_speedup[(searched + 1) << 2 * (SPEEDUP_DEPTH - depth)] - 1;
         }
 
         while (begin < end){
@@ -84,35 +83,19 @@ class FailureIndex {
         return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
     }
 public:
-    FailureIndex(const std::vector<kmer_t> &kmers, size_n_max k) :
+    FailureIndex(const std::vector<kmer_t> &kmers, size_k_max k) :
             kMers(kmers), N(kmers.size()), K(k) {
         std::cerr << "Constructing index..."; std::cerr.flush();
         construct_index();
         std::cerr << std::endl;
     }
 
-    size_n_max find_first_failure_leaf(size_n_max index, size_n_max depth){
+    size_n_max find_first_failure_leaf(size_n_max index, size_k_max depth){
         if (depth >= (K - FIRST_ROW_COUNT)){
             return first_rows[(K - depth - 1) * N + index];
         }
-
-        auto c = cached[K - FIRST_ROW_COUNT - depth - 1];
         
-        auto it = c.find(index);
-        if (it != c.end()){
-            return it->second;
-        }
-        
-        size_n_max result = binary_search(index, depth);
-        
-        c.emplace(std::make_pair(index, result));
-
-        if (c.size() >= CACHE_LIMIT){
-            std::cerr << ' ' << c.size() << std::endl;
-            c.clear();
-        }
-
-        return result;
+        return binary_search(index, depth);
     }
 };
 
