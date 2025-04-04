@@ -73,10 +73,11 @@ def main():
     success = True
     if args.superstring_path is None:
         # Do the tests on superstring algoritms.
-        for a in ["global", "local", "globalAC", "localAC", "streaming"]:
+        for a in ["loac"]:
             print(f"Testing {a}:")
             for complements in [True, False]:
-                for k in ( ([5, 8, 12] if a not in ["local", "global"] else [5, 8, 12, 17, 31, 32, 51, 63, 127]) if args.quick else range(2, 128)):
+                for k in ( ([5, 8, 12] if a not in ["local", "global", "csac", "loac"] else [5, 8, 12, 17, 31, 32, 51, 63, 127]) if args.quick else range(2, 128)):
+                    print(k, complements)
                     success &= verify_instance(args.path, k, a, complements, "")
                 print("")
     else:

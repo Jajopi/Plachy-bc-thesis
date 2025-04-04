@@ -71,7 +71,7 @@ int kmercamel(kh_wrapper_t wrapper, kmer_t kmer_type, std::string path, int k, i
         return ret;
     }
 
-    std::cout << algorithm << std::endl;
+    std::cerr << algorithm << std::endl;
 
     /* Handle streaming algorithm separately. */
     if (algorithm == "streaming") {
