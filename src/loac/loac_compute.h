@@ -32,7 +32,7 @@ class FailureIndex {
 
     static inline size_n_max INVALID_NODE() { return std::numeric_limits<size_n_max>::max(); };
 
-    void construct_index(){
+    inline void construct_index(){
         N = kMers.size();
         
         SPEEDUP_DEPTH = log2(N) / 2;
@@ -53,49 +53,56 @@ class FailureIndex {
                     first_rows[row * N + i] = first_rows[row * N + i - 1];
                     continue;
                 }
-                first_rows[row * N + i] = binary_search(i, K - row - 1);
+                first_rows[row * N + i] = search(i, K - row - 1);
             }
         }
     }
 
-    size_n_max binary_search(size_n_max index, size_k_max depth){
+    inline size_n_max search(size_n_max index, size_k_max depth){
         kmer_t searched = BitSuffix(kMers[index], depth);
-        size_n_max begin = 0, end = N - 1;
 
-        if (depth >= SPEEDUP_DEPTH){
-            size_n_max speedup_index = BitPrefix(searched, depth, SPEEDUP_DEPTH);
-            begin = search_speedup[speedup_index];
-            end = search_speedup[speedup_index + 1] - 1;
+        if (depth < SPEEDUP_DEPTH){
+            size_n_max begin = search_speedup[searched << 2 * (SPEEDUP_DEPTH - depth)];
+            return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
         }
-        else {
-            begin = search_speedup[searched << 2 * (SPEEDUP_DEPTH - depth)];
+        
+        size_n_max speedup_index = BitPrefix(searched, depth, SPEEDUP_DEPTH);
+        size_n_max begin = search_speedup[speedup_index];
+        size_n_max end = search_speedup[speedup_index + 1] - 1;
+
+        if (end - begin > 7){ // Switch to bin search on big intervals
+            while (begin < end){
+                size_n_max middle = (begin + end) / 2;
+                kmer_t current = BitPrefix(kMers[middle], K, depth);
+    
+                if (current == searched) end = middle;
+                else if (current < searched) begin = middle + 1;
+                else end = middle - 1;
+            }
             return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
         }
 
-        while (begin < end){
-            size_n_max middle = (begin + end) / 2;
-            kmer_t current = BitPrefix(kMers[middle], K, depth);
-
-            if (current == searched) end = middle;
-            else if (current < searched) begin = middle + 1;
-            else end = middle - 1;
+        for (size_n_max i = begin; i <= end; ++i){
+            kmer_t current = BitPrefix(kMers[i], K, depth);
+            if (current == searched) return i;
+            if (current > searched) return INVALID_NODE();
         }
-        return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
+        return INVALID_NODE();
     }
 public:
-    FailureIndex(const std::vector<kmer_t> &kmers, size_k_max k) :
+    inline FailureIndex(const std::vector<kmer_t> &kmers, size_k_max k) :
             kMers(kmers), N(kmers.size()), K(k) {
         std::cerr << "Constructing index..."; std::cerr.flush();
         construct_index();
         std::cerr << std::endl;
     }
 
-    size_n_max find_first_failure_leaf(size_n_max index, size_k_max depth){
+    inline size_n_max find_first_failure_leaf(size_n_max index, size_k_max depth){
         if (depth >= (K - FIRST_ROW_COUNT)){
             return first_rows[(K - depth - 1) * N + index];
         }
-        
-        return binary_search(index, depth);
+
+        return search(index, depth);
     }
 };
 

@@ -19,7 +19,7 @@ void compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
     auto loac = LeafOnlyAC<kmer_t, size_t_max>(
         kMers, size_t_max(k), complements);
 
-    if (run_penalty == DEFAULT_RUN_PENALTY) run_penalty = log2(kMers.size());
+    if (run_penalty == DEFAULT_RUN_PENALTY) run_penalty = log2(kMers.size()) / 2;
     if (precision == 0) precision = DEFAULT_PRECISION;
     if (precision > sizeof(size_t_max) * 8) precision = sizeof(size_t_max) * 8;
 
