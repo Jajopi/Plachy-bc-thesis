@@ -16,7 +16,7 @@ ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 MULITHREADING = True
-MAX_WORKERS = 2
+MAX_WORKERS = 8
 
 def run_command(command):
     print(*command)
@@ -59,8 +59,7 @@ def parse_header(header):
         return (alg, inp, k, c, run_p)
 
 def compute_objective(length, runs):
-    # return int(length + runs * math.log2(length)) # TODO switch from RLE to EF penalty
-    return int(length + runs * (3 + math.log2(length / runs)))
+    return int(length + runs * (1 + math.log2(length / runs)))
 
 def parse_data(input):
     data = dict()
@@ -73,28 +72,31 @@ def parse_data(input):
 def load_all_results(file_name):
     try:
         with open(file_name) as file:
-            results = list(filter(lambda x: len(x) > 0 and x[0] != "#",
+            data = list(filter(lambda x: len(x) > 0 and x[0] != "#",
                            map(lambda x: x.strip(),
                                file.readlines())))
     except:
         with open(file_name, "w") as file:
             return dict()
     
-    done = dict()
-    for result in results:
-        header, data = result.split(":=")
+    results = dict()
+    for result in data:
+        header, values = result.split(":=")
         key = parse_header(header)
-        done[key] = parse_data(data)
+        results[key] = parse_data(values)
 
-    for result in results: # compute relative objective function results
-        header, data = result.split(":=")
+    for result in data: # compute relative objective function results
+        header, values = result.split(":=")
         key = parse_header(header)
         alg, inp, k, c, rp = key
-        done[key][LABELS[5]] = (done[key][LABELS[4]] / done[(ALG_OLD, inp, k, c, None)][LABELS[4]]
-                                if alg != ALG_OLD
-                                else 1)
 
-    return done
+        results[key][LABELS[5]] = 1
+        if alg != ALG_OLD:
+            if (ALG_OLD, inp, k, c, None) in results.keys():
+                results[key][LABELS[5]] = results[key][LABELS[4]] / results[(ALG_OLD, inp, k, c, None)][LABELS[4]]
+            else: results[key][LABELS[5]] = 0
+
+    return results
 
 def compute_missing():
     results = load_all_results(RESULTS_FILE_NAME)
@@ -104,7 +106,7 @@ def compute_missing():
         limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
         run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else None
         inp = inp.split()[0]
-        for alg in ALGORITHMS:
+        for alg in (reversed(ALGORITHMS) if MULITHREADING else ALGORITHMS):
             rp = run_penalty if alg != ALG_OLD else None
             for k in KS:
                 if k >= limit: continue

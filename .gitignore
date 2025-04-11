@@ -5,6 +5,7 @@ kmercamel
 src/version.h
 outputs
 data/big
+data/subsampled
 count_kmers.py
 count_noncomplement_kmers.py
 testing_outputs
@@ -14,3 +15,4 @@ results_penalty.txt
 figures
 .gurobi_lib
 src/ilp/gurobi
+.ipynb_checkpoints

@@ -5,17 +5,25 @@
 # (default = log2(kmer count), used when no value supplied)
 
 # optimal penalties (for k=31) computed
-spneumoniae.fa                                  128     15
-ecoli.fna                                       128     16
-scerevisiae.fna                                 128     15
-ngono_pangenome_RASE_db.unitigs_k128.fa         128     9
-spneumo_pangenome_RASE_db.unitigs_k128.fa       128     9
-sars-cov-2_pangenome_gisaid.unitigs_k128.fa     96      10
-celegans.fa                                     64      14
-dmelanogaster.fna                               64      14
+spneumoniae.fa                                                  128     15
+ecoli.fna                                                       128     16
+scerevisiae.fna                                                 128     15
+ngono_pangenome_RASE_db.unitigs_k128.fa                         128     9
+spneumo_pangenome_RASE_db.unitigs_k128.fa                       128     9
+sars-cov-2_pangenome_gisaid.unitigs_k128.fa                     96      10
+celegans.fa                                                     64      14
+dmelanogaster.fna                                               64      14
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      8
 
 # optimal penalties (for k=31) not yet computed
-human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      9
-human_genome_assembly_chm13.v2.0.fa             32      12
-ecoli_pangenome_661k_HQ.unitigs_k128.fa         32      9
+#human_genome_assembly_chm13.v2.0.fa                             32      12
+ecoli_pangenome_661k_HQ.unitigs_k128.fa                         32      9
 
+
+# subsampled
+ngono_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1                        32      9
+spneumo_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1                      32      9
+sars-cov-2_pangenome_gisaid.unitigs_k128_subsampled_k31_r0.1                    32      10
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32_subsampled_k31_r0.1    32      8
+#human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1                 32      12
+#ecoli_pangenome_661k_HQ.unitigs_k128_subsampled_k31_r0.1                        32      9

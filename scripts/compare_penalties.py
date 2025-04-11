@@ -10,7 +10,7 @@ KS = [31]
 RUN_PENALTIES = list(range(KS[0] + 1))
 RESULTS_FILE_NAME = "results_penalty.txt"
 
-MAX_WORKERS = 8
+MAX_WORKERS = 4
 
 def run_command(command):
     print(*command)
