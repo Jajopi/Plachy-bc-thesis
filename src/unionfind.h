@@ -15,8 +15,8 @@ public:
     inline size_t_max find(size_t_max x) {
         size_t_max root = roots[x];
         if (roots[root] == root) return root;
+
         while (roots[root] != root) root = roots[root];
-        
         while (x != root){
             size_t_max new_x = roots[x];
             roots[x] = root;

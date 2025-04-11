@@ -10,9 +10,9 @@
 #include "../kmers.h"
 #include "csac_construction.h"
 
-#define RANDOM_SEED 0
-#define MAX_COUNT_WIDTH 12
-#define MAX_ITERS_WIDTH 3
+constexpr size_t RANDOM_SEED_CSAC = 0;
+constexpr size_t MAX_COUNT_WIDTH_CSAC = 12;
+constexpr size_t MAX_ITERS_WIDTH_CSAC = 3;
 
 template <typename kmer_t, typename size_t_max, size_t_max K_BIT_SIZE>
 inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
@@ -34,21 +34,21 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
 
     std::vector<size_t_max> uncompleted_leaves(N);
     for (size_t_max i = 0; i < N; ++i) uncompleted_leaves[i] = i;
-    std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(RANDOM_SEED));
+    std::shuffle(uncompleted_leaves.begin(), uncompleted_leaves.end(), std::default_random_engine(RANDOM_SEED_CSAC));
     size_t_max next_preffered_leaf = INVALID_LEAF();
 
     size_t_max max_priority_drop = (K - 1) * EXTENSION_PENALTY + RUN_PENALTY;
 
     size_t_max remaining_iterations = max_priority_drop / EXTENSION_PENALTY;
-    LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations << std::endl;
-    LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
+    LOG_STREAM << std::setw(MAX_COUNT_WIDTH_CSAC) << N << ' ' << std::setw(MAX_ITERS_WIDTH_CSAC) << remaining_iterations << std::endl;
+    LOG_STREAM << std::setw(MAX_COUNT_WIDTH_CSAC) << N << ' ' << std::setw(MAX_ITERS_WIDTH_CSAC) << remaining_iterations; LOG_STREAM.flush();
 
     for (size_t_max priority_drop_limit = EXTENSION_PENALTY;
                     priority_drop_limit <= max_priority_drop;
                     priority_drop_limit += EXTENSION_PENALTY){
         size_t_max uncompleted_leaf_count = uncompleted_leaves.size();
-        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaf_count
-            << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations--; LOG_STREAM.flush();
+        LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH_CSAC) << uncompleted_leaf_count
+            << ' ' << std::setw(MAX_ITERS_WIDTH_CSAC) << remaining_iterations--; LOG_STREAM.flush();
         
         if (uncompleted_leaf_count < SEARCH_CUTOFF) break;
         
@@ -85,8 +85,8 @@ inline void CuttedSortedAC<kmer_t, size_t_max, K_BIT_SIZE>::compute_result() {
         squeeze_uncompleted_leaves(uncompleted_leaves);
     }
 
-    LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH) << uncompleted_leaves.size()
-        << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
+    LOG_STREAM << "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b" << std::setw(MAX_COUNT_WIDTH_CSAC) << uncompleted_leaves.size()
+        << ' ' << std::setw(MAX_ITERS_WIDTH_CSAC) << remaining_iterations; LOG_STREAM.flush();
 
     COMPUTED_RESULT = true;
 }

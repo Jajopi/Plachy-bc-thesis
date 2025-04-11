@@ -9,7 +9,7 @@
 #include "../kmers.h"
 #include "../unionfind.h"
 
-#define MAX_DEPTH_WIDTH 3
+constexpr size_t MAX_DEPTH_WIDTH = 3;
 
 template<typename size_t_max, size_t_max K_BIT_SIZE>
 struct CS_AC_Node {

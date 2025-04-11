@@ -12,11 +12,11 @@
 #include "../kmers.h"
 #include "../unionfind.h"
 
-#define size_k_max uint8_t
+typedef uint8_t size_k_max;
 
-#define RANDOM_SEED 0
-#define MAX_COUNT_WIDTH 12
-#define MAX_ITERS_WIDTH 3
+constexpr size_t RANDOM_SEED = 0;
+constexpr size_t MAX_COUNT_WIDTH = 12;
+constexpr size_t MAX_ITERS_WIDTH = 3;
 
 template<typename kmer_t, typename size_n_max>
 class FailureIndex {
@@ -33,7 +33,7 @@ class FailureIndex {
     static inline size_n_max INVALID_NODE() { return std::numeric_limits<size_n_max>::max(); };
 
     void construct_index(){
-        size_n_max N = kMers.size();
+        N = kMers.size();
         
         SPEEDUP_DEPTH = log2(N) / 2;
         size_n_max speedup_size = (size_n_max(1) << 2 * SPEEDUP_DEPTH);
@@ -69,7 +69,7 @@ class FailureIndex {
         }
         else {
             begin = search_speedup[searched << 2 * (SPEEDUP_DEPTH - depth)];
-            end = search_speedup[(searched + 1) << 2 * (SPEEDUP_DEPTH - depth)] - 1;
+            return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
         }
 
         while (begin < end){
@@ -406,7 +406,7 @@ inline void LeafOnlyAC<kmer_t, size_n_max>::push_failure_of_node_into_stack(
         priority -= RUN_PENALTY;
     }
 
-    stack.push_back(std::make_tuple(priority, failure_index, failure_depth, last_leaf));
+    stack.emplace_back(priority, failure_index, failure_depth, last_leaf);
 }
 
 template <typename kmer_t, typename size_n_max>

@@ -7,8 +7,8 @@
 #include "../kmers.h"
 #include "loac_compute.h"
 
-#define DEFAULT_PRECISION 100
-#define DEFAULT_RUN_PENALTY std::numeric_limits<size_t>::max()
+constexpr size_t DEFAULT_PRECISION = 100;
+constexpr size_t DEFAULT_RUN_PENALTY = std::numeric_limits<size_t>::max();
 
 template <typename kmer_t, typename size_t_max>
 void compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
@@ -61,17 +61,6 @@ void set_limit_and_compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& o
 
 template <typename kmer_t>
 void LOAC(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0);
-
-void LOAC(std::vector<kmer64_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
-    set_limit_and_compute_with_loac<kmer64_t>(kMers, os, k, complements, run_penalty, precision);
-}
-void LOAC(std::vector<kmer128_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
-    set_limit_and_compute_with_loac<kmer128_t>(kMers, os, k, complements, run_penalty, precision);
-}
-void LOAC(std::vector<kmer256_t>& kMers, std::ostream& os, size_t k,
-        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0) {
-    set_limit_and_compute_with_loac<kmer256_t>(kMers, os, k, complements, run_penalty, precision);
+        bool complements, size_t run_penalty = DEFAULT_RUN_PENALTY, size_t precision = 0){
+    set_limit_and_compute_with_loac<kmer_t>(kMers, os, k, complements, run_penalty, precision);
 }
