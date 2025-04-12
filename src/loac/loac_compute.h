@@ -22,13 +22,12 @@ template<typename kmer_t, typename size_n_max>
 class FailureIndex {
     const std::vector<kmer_t> &kMers;
     size_n_max N;
-    size_n_max K;
+    size_k_max K;
     
-    size_n_max FIRST_ROW_COUNT;
-    std::vector<size_n_max> first_rows;
+    std::vector<size_n_max> first_row;
 
     std::vector<size_n_max> search_speedup;
-    size_n_max SPEEDUP_DEPTH;
+    size_k_max SPEEDUP_DEPTH;
 
     static inline size_n_max INVALID_NODE() { return std::numeric_limits<size_n_max>::max(); };
 
@@ -45,17 +44,8 @@ class FailureIndex {
         }
         search_speedup[speedup_size] = N;
 
-        FIRST_ROW_COUNT = 1;
-        first_rows.resize(N * FIRST_ROW_COUNT);
-        for (size_n_max row = 0; row < FIRST_ROW_COUNT; ++row){
-            for (size_n_max i = 0; i < N; ++i){
-                if (i > 0 && BitSuffix(kMers[i], K - row - 1) == BitSuffix(kMers[i - 1], K - row - 1)){
-                    first_rows[row * N + i] = first_rows[row * N + i - 1];
-                    continue;
-                }
-                first_rows[row * N + i] = search(i, K - row - 1);
-            }
-        }
+        first_row.resize(N);
+        for (size_n_max i = 0; i < N; ++i) first_row[i] = search(i, K - 1);
     }
 
     inline size_n_max search(size_n_max index, size_k_max depth){
@@ -66,23 +56,27 @@ class FailureIndex {
             return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
         }
         
-        size_n_max speedup_index = BitPrefix(searched, depth, SPEEDUP_DEPTH);
+        kmer_t speedup_index = BitPrefix(searched, depth, SPEEDUP_DEPTH);
         size_n_max begin = search_speedup[speedup_index];
-        size_n_max end = search_speedup[speedup_index + 1] - 1;
+        size_n_max end = search_speedup[speedup_index + 1];
 
-        if (end - begin > 7){ // Switch to bin search on big intervals
+        if (end - begin > 8){ // Switch to bin-search on big intervals
+            --end;
             while (begin < end){
                 size_n_max middle = (begin + end) / 2;
                 kmer_t current = BitPrefix(kMers[middle], K, depth);
     
                 if (current == searched) end = middle;
                 else if (current < searched) begin = middle + 1;
-                else end = middle - 1;
+                else {
+                    end = middle - 1;
+                    if (end > middle) break;
+                }
             }
             return (BitPrefix(kMers[begin], K, depth) != searched) ? INVALID_NODE() : begin;
         }
 
-        for (size_n_max i = begin; i <= end; ++i){
+        for (size_n_max i = begin; i < end; ++i){
             kmer_t current = BitPrefix(kMers[i], K, depth);
             if (current == searched) return i;
             if (current > searched) return INVALID_NODE();
@@ -98,9 +92,7 @@ public:
     }
 
     inline size_n_max find_first_failure_leaf(size_n_max index, size_k_max depth){
-        if (depth >= (K - FIRST_ROW_COUNT)){
-            return first_rows[(K - depth - 1) * N + index];
-        }
+        if (depth == K - 1) return first_row[index];
 
         return search(index, depth);
     }
@@ -320,13 +312,12 @@ inline bool LeafOnlyAC<kmer_t, size_n_max>::try_complete_leaf(
         size_n_max last_leaf = std::get<3>(t);
 
         size_n_max leaf_complement = COMPLEMENTS ? complements[leaf_to_complete] : INVALID_NODE();
+        kmer_t leaf_prefix = BitPrefix(kMers[leaf_index], K, chain_depth);
 
         if (no_unused[leaf_index] > chain_depth){ // There is at least one unused leaf to be found
             bool skipped_unused = false;
 
-            for (size_n_max i = leaf_index; i < N &&
-                    BitPrefix(kMers[leaf_index], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
-                    ++i){
+            for (size_n_max i = leaf_index; i < N && leaf_prefix == BitPrefix(kMers[i], K, chain_depth); ++i){
                 if (used[i]) continue;
                 if ((COMPLEMENTS && leaf_complement == i) || components.are_connected(leaf_to_complete, i)){
                     skipped_unused = true;
@@ -354,16 +345,14 @@ inline bool LeafOnlyAC<kmer_t, size_n_max>::try_complete_leaf(
             if (!skipped_unused) no_unused[leaf_index] = chain_depth;
         }
 
-        for (size_n_max i = leaf_index; i < N &&
-                BitPrefix(kMers[leaf_index], K, chain_depth) == BitPrefix(kMers[i], K, chain_depth);
-                ++i){
+        for (size_n_max i = leaf_index; i < N && leaf_prefix == BitPrefix(kMers[i], K, chain_depth); ++i){
             if (i == leaf_to_complete) continue;
 
             if (priority_drop_limit >= RUN_PENALTY){
                 if (remaining_priorities[i] >= priority){
                     std::vector<size_n_max> skipped;
                     size_n_max j = i;
-                    while (j < N && remaining_priorities[j] >= priority){
+                    while (j < N && remaining_priorities[j] >= priority && leaf_prefix == BitPrefix(kMers[j], K, chain_depth)){
                         skipped.push_back(j);
                         j = skip_to[j];
                     }
@@ -373,8 +362,8 @@ inline bool LeafOnlyAC<kmer_t, size_n_max>::try_complete_leaf(
                     i = j;
                     continue;
                 }
-                skip_to[i] = i + 1;
                 remaining_priorities[i] = priority;
+                if (remaining_priorities[skip_to[i]] < priority) skip_to[i] = i + 1;
             }
             else {
                 if (remaining_priorities[i] >= priority) continue;
@@ -461,6 +450,10 @@ inline size_n_max LeafOnlyAC<kmer_t, size_n_max>::print_result(std::ostream& os)
     }
     LOG_STREAM << std::endl << "Printing..."; LOG_STREAM.flush();
 
+    // if (K % 2 == 0){ // Avoid infinity loops for even ks
+    //     std::fill(used.begin(), used.end(), false);
+    // }
+
     size_n_max total_length = 0;
     size_n_max run_count = 1;
 
@@ -478,6 +471,8 @@ inline size_n_max LeafOnlyAC<kmer_t, size_n_max>::print_result(std::ostream& os)
 
         actual = i;
         while (actual != INVALID_NODE()){
+            // if (K % 2 == 0) used[actual] = true;
+
             if (first){
                 first = false;
                 last_kmer = kMers[i];
@@ -513,6 +508,8 @@ inline size_n_max LeafOnlyAC<kmer_t, size_n_max>::print_result(std::ostream& os)
 
             if (next[actual] == actual) break;
             actual = next[actual];
+
+            // if (K % 2 == 0 && used[actual]) actual = INVALID_NODE();
         }        
     }
     print_kmer_masked(last_kmer, K, os, K);

@@ -47,9 +47,9 @@ void set_limit_and_compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& o
 
         size_t limit = kMers.size();
 
-        if      (limit < (size_t(1) << 15))
+        if      (limit <= (size_t(1) << 15))
             compute_with_loac<kmer_t, uint16_t>(kMers, os, k, complements, run_penalty, precision);
-        else if (limit < (size_t(1) << 31))
+        else if (limit <= (size_t(1) << 31))
             compute_with_loac<kmer_t, uint32_t>(kMers, os, k, complements, run_penalty, precision);
         else
             compute_with_loac<kmer_t, uint64_t>(kMers, os, k, complements, run_penalty, precision);
