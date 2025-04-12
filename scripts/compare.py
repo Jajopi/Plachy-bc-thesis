@@ -16,7 +16,7 @@ ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 MULITHREADING = True
-MAX_WORKERS = 8
+MAX_WORKERS = 4
 
 def run_command(command):
     print(*command)
