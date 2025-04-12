@@ -157,18 +157,19 @@ inline void LeafOnlyAC<kmer_t, size_n_max>::find_complements() {
     if (!COMPLEMENTS) return;
 
     complements.resize(N);
+    bool even_k = K % 2 == 0;
 
     std::vector<std::pair<kmer_t, size_n_max>> complement_kmers(N);
     for (size_n_max i = 0; i < N; ++i){
-        complement_kmers[i] = std::make_pair(ReverseComplement(kMers[i], K), i);
+        complement_kmers[i] = std::make_pair(ReverseComplement(kMers[i], K),
+                                             even_k ? N - i : i); // For even k, swap indexes for same pairs of kmers
     }
 
     std::sort(complement_kmers.begin(), complement_kmers.end());
     
     for (size_n_max i = 0; i < N; ++i){
-        complements[i] = complement_kmers[i].second;
+        complements[i] = even_k ? N - complement_kmers[i].second : complement_kmers[i].second;
     }
-    
 }
 
 template <typename kmer_t, typename size_n_max>
@@ -209,7 +210,7 @@ inline void LeafOnlyAC<kmer_t, size_n_max>::compute_result() {
     size_n_max remaining_iterations = max_priority_drop;
     LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations << std::endl;
     LOG_STREAM << std::setw(MAX_COUNT_WIDTH) << N << ' ' << std::setw(MAX_ITERS_WIDTH) << remaining_iterations; LOG_STREAM.flush();
-    
+
     for (size_k_max priority_drop_limit = 1;
         priority_drop_limit <= max_priority_drop;
         ++priority_drop_limit){
@@ -450,10 +451,6 @@ inline size_n_max LeafOnlyAC<kmer_t, size_n_max>::print_result(std::ostream& os)
     }
     LOG_STREAM << std::endl << "Printing..."; LOG_STREAM.flush();
 
-    // if (K % 2 == 0){ // Avoid infinity loops for even ks
-    //     std::fill(used.begin(), used.end(), false);
-    // }
-
     size_n_max total_length = 0;
     size_n_max run_count = 1;
 
@@ -471,8 +468,6 @@ inline size_n_max LeafOnlyAC<kmer_t, size_n_max>::print_result(std::ostream& os)
 
         actual = i;
         while (actual != INVALID_NODE()){
-            // if (K % 2 == 0) used[actual] = true;
-
             if (first){
                 first = false;
                 last_kmer = kMers[i];
@@ -508,9 +503,7 @@ inline size_n_max LeafOnlyAC<kmer_t, size_n_max>::print_result(std::ostream& os)
 
             if (next[actual] == actual) break;
             actual = next[actual];
-
-            // if (K % 2 == 0 && used[actual]) actual = INVALID_NODE();
-        }        
+        }
     }
     print_kmer_masked(last_kmer, K, os, K);
     total_length += K;

@@ -10,18 +10,18 @@
 constexpr size_t DEFAULT_PRECISION = 100;
 constexpr size_t DEFAULT_RUN_PENALTY = std::numeric_limits<size_t>::max();
 
-template <typename kmer_t, typename size_t_max>
+template <typename kmer_t, typename size_n_max>
 void compute_with_loac(std::vector<kmer_t>& kMers, std::ostream& os, size_t k,
         bool complements, size_t run_penalty, size_t precision){
 
     std::sort(kMers.begin(), kMers.end());
 
-    auto loac = LeafOnlyAC<kmer_t, size_t_max>(
-        kMers, size_t_max(k), complements);
+    auto loac = LeafOnlyAC<kmer_t, size_n_max>(
+        kMers, size_n_max(k), complements);
 
     if (run_penalty == DEFAULT_RUN_PENALTY) run_penalty = log2(kMers.size()) / 2;
     if (precision == 0) precision = DEFAULT_PRECISION;
-    if (precision > sizeof(size_t_max) * 8) precision = sizeof(size_t_max) * 8;
+    if (precision > sizeof(size_n_max) * 8) precision = sizeof(size_n_max) * 8;
 
     loac.set_search_parameters(run_penalty, precision);
     loac.compute_result();
