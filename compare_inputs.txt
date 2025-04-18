@@ -24,9 +24,9 @@ ecoli_pangenome_661k_HQ.unitigs_k128.fa                         32      7       
 #human_genome_assembly_chm13.v2.0.fa                             32      10
 
 # subsampled
-ngono_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                        32      7        N._gonorrheae_(p)(s)
-spneumo_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                      32      7        S._pneumoniae_(p)(s)
-sars-cov-2_pangenome_gisaid.unitigs_k128_subsampled_k31_r0.1.fa                    32      8        Sars-cov-2_(p)(s)
-human_microbiome_illumina_srs063932.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa    32      7        Human_microbiome_(p)(s)
-human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa                 32      7        Human_RNAseq(s)
-ecoli_pangenome_661k_HQ.unitigs_k128_subsampled_k31_r0.1.fa                        32      7        E._coli_(p)(s)
+ngono_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                        32      7        N._gonorrheae_(p)
+spneumo_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                      32      7        S._pneumoniae_(p)
+sars-cov-2_pangenome_gisaid.unitigs_k128_subsampled_k31_r0.1.fa                    32      8        Sars-cov-2_(p)
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa    32      7        Human_microbiome_(p)
+human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa                 32      7        Human_RNAseq
+ecoli_pangenome_661k_HQ.unitigs_k128_subsampled_k31_r0.1.fa                        32      7        E._coli_(p)
