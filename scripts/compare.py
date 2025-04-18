@@ -16,7 +16,7 @@ ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 MULITHREADING = True
-MAX_WORKERS = 4
+MAX_WORKERS = 12
 
 def run_command(command):
     print(*command)
@@ -110,7 +110,7 @@ def compute_missing():
             rp = run_penalty if alg != ALG_OLD else None
             for k in KS:
                 if k >= limit: continue
-                for complements in (False, True):
+                for complements in (True, ):
                     if (alg, inp, k, complements, rp) in results.keys():
                         continue
 

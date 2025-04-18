@@ -227,3 +227,11 @@
 2025-04-12:21:17:17	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 23 -a global -c 	:= 439532030	4574985	2053.84	37121628
 2025-04-12:21:34:27	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 23 -a global    	:= 557591028	5697551	1760.27	56495020
 2025-04-12:22:17:53	-p data/human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa -k 31 -a loac    --run-penalty 7	:= 839247544	64314528	19342.88	3409328
+2025-04-13:01:41:23	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 31 -a loac -c --run-penalty 7	:= 557692174	3523938	11235.95	45810156
+2025-04-13:03:33:06	-p data/human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa -k 23 -a loac -c --run-penalty 7	:= 533751127	24399400	17928.65	32349904
+2025-04-13:04:43:02	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 31 -a loac    --run-penalty 7	:= 694988113	4445274	10867.03	26710952
+2025-04-13:05:46:11	-p data/ecoli_pangenome_661k_HQ.unitigs_k128_subsampled_k31_r0.1.fa -k 23 -a loac    --run-penalty 7	:= 630226410	30874436	25917.01	17256132
+2025-04-13:06:37:08	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 23 -a loac -c --run-penalty 7	:= 441825253	3692855	11009.37	37806656
+2025-04-13:07:00:05	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 23 -a loac    --run-penalty 7	:= 560140595	4704666	8198.46	22509116
+2025-04-13:10:50:33	-p data/human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa -k 23 -a loac    --run-penalty 7	:= 727681800	36086382	44140.99	18722532
+2025-04-14:06:04:22	-p data/human_genome_assembly_chm13.v2.0.fa -k 23 -a loac    --run-penalty 10	:= 2500855206	2749407	27096.31	182869012

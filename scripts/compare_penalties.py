@@ -8,9 +8,10 @@ from compare import *
 
 KS = [31]
 RUN_PENALTIES = list(range(KS[0] + 1))
+# RUN_PENALTIES = list(range(11))
 RESULTS_FILE_NAME = "results_penalty.txt"
 
-MAX_WORKERS = 4
+MAX_WORKERS = 6
 
 def run_command(command):
     print(*command)
@@ -27,7 +28,7 @@ def compute_missing():
             for run_penalty in RUN_PENALTIES:
                 rp = run_penalty if alg != ALG_OLD else None
                 k = KS[0]
-                for complements in (False, True):
+                for complements in (True, ):
                     if (alg, inp, k, complements, rp) in results.keys():
                         continue
 

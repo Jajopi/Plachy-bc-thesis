@@ -4,24 +4,29 @@
 # second number is the custom run penalty to be used
 # (default = log2(kmer count), used when no value supplied)
 
+# third field is the name to be exported into results.csv
+# if -, no export
+# _ gets substituted by space
+
 # optimal penalties (for k=31) computed
-spneumoniae.fa                                                  128     13
-ecoli.fna                                                       128     16
-scerevisiae.fna                                                 128     13
-ngono_pangenome_RASE_db.unitigs_k128.fa                         128     7
-spneumo_pangenome_RASE_db.unitigs_k128.fa                       128     7
-sars-cov-2_pangenome_gisaid.unitigs_k128.fa                     96      8
-celegans.fa                                                     64      12
-dmelanogaster.fna                                               64      12
-human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      7
-ecoli_pangenome_661k_HQ.unitigs_k128.fa                         32      7
+spneumoniae.fa                                                  128     13      -
+ecoli.fna                                                       128     16      -
+scerevisiae.fna                                                 128     13      -
+ngono_pangenome_RASE_db.unitigs_k128.fa                         128     7       N._gonorrheae_(p)
+spneumo_pangenome_RASE_db.unitigs_k128.fa                       128     7       S._pneumoniae_(p)
+sars-cov-2_pangenome_gisaid.unitigs_k128.fa                     128     8       Sars-cov-2_(p)
+celegans.fa                                                     96      12      C._elegans
+dmelanogaster.fna                                               96      12      D._melanogaster
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa     32      7       Human_microbiome_(p)
+ecoli_pangenome_661k_HQ.unitigs_k128.fa                         32      7       E._coli_(p)
 
 # optimal penalties (for k=31) not yet computed
 #human_genome_assembly_chm13.v2.0.fa                             32      10
+
 # subsampled
-ngono_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                        32      7
-spneumo_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                      32      7
-sars-cov-2_pangenome_gisaid.unitigs_k128_subsampled_k31_r0.1.fa                    32      8
-human_microbiome_illumina_srs063932.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa    32      7
-human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa                 32      7
-ecoli_pangenome_661k_HQ.unitigs_k128_subsampled_k31_r0.1.fa                        32      7
+ngono_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                        32      7        N._gonorrheae_(p)(s)
+spneumo_pangenome_RASE_db.unitigs_k128_subsampled_k31_r0.1.fa                      32      7        S._pneumoniae_(p)(s)
+sars-cov-2_pangenome_gisaid.unitigs_k128_subsampled_k31_r0.1.fa                    32      8        Sars-cov-2_(p)(s)
+human_microbiome_illumina_srs063932.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa    32      7        Human_microbiome_(p)(s)
+human_rnaseq_srx348811.unitigs_minfreq2_k32_subsampled_k31_r0.1.fa                 32      7        Human_RNAseq(s)
+ecoli_pangenome_661k_HQ.unitigs_k128_subsampled_k31_r0.1.fa                        32      7        E._coli_(p)(s)
