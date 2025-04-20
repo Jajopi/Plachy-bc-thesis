@@ -6,7 +6,7 @@ import math
 from concurrent.futures import ThreadPoolExecutor, wait
 from compare import *
 
-KS = [31]
+KS = [23]
 RUN_PENALTIES = list(range(KS[0] + 1))
 # RUN_PENALTIES = list(range(11))
 RESULTS_FILE_NAME = "results_penalty.txt"
@@ -17,11 +17,12 @@ def run_command(command):
     print(*command)
     subprocess.run(command, text=True, check=True)
 
-def compute_missing():
+def compute_missing(limits=None):
     results = load_all_results(RESULTS_FILE_NAME)
     
     thread_inputs = []
     for inp in load_all_inputs(INPUT_FILE_NAME):
+        if limits is not None: thread_inputs = []
         inp = inp.split()[0]
         print(inp)
         for alg in ALGORITHMS:
@@ -38,8 +39,21 @@ def compute_missing():
                         # print(args)
                     else: run_with_parameters(*args)
                 if alg == ALG_OLD: break # only count the same thing once
+        
+        if len(thread_inputs) == 0: continue
+        if limits is not None:
+            if limits[0] == 0: continue
+            print(len(thread_inputs))
+            with ThreadPoolExecutor(max_workers=limits[0]) as exe:
+                futures = [exe.submit(run_with_parameters, *i) for i in reversed(thread_inputs)]
+                wait(futures)
+            
+            limits.pop(0)
+            if len(limits) == 0:
+                limits = None
+                thread_inputs = []
 
-    if MULITHREADING:
+    if MULITHREADING and limits is None:
         print(len(thread_inputs))
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as exe:
             futures = [exe.submit(run_with_parameters, *i) for i in thread_inputs]
@@ -47,4 +61,7 @@ def compute_missing():
     print("Done")
 
 if __name__ == "__main__":
-    compute_missing()
+    limits = None
+    if len(sys.argv) > 1:
+        limits = list(map(int, sys.argv[1:]))
+    compute_missing(limits)

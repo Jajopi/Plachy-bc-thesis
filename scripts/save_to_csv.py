@@ -29,8 +29,8 @@ def print_to_csv(results_or_resources=True, k=31, complements=True, subsampled=F
             name = inp.split()[3].replace('_', ' ')
             if name == "-": continue
             if not subsampled:
-                if "(p)" in name and not pangenomes: continue
-                if not "(p)" in name and pangenomes: continue
+                if ("(p)" in name or "RNA" in name) and not pangenomes: continue
+                if not ("(p)" in name or "RNA" in name) and pangenomes: continue
             name = name.replace("(p)", "")
 
             inp = inp.split()[0]

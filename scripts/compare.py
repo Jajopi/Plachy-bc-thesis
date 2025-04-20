@@ -4,6 +4,7 @@ import subprocess
 import math
 # from threading import Thread
 from concurrent.futures import ThreadPoolExecutor, wait
+import sys
 
 INPUT_DIR = "data"
 INPUT_FILE_NAME = "compare_inputs.txt"
@@ -16,7 +17,7 @@ ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 MULITHREADING = True
-MAX_WORKERS = 12
+MAX_WORKERS = 6
 
 def run_command(command):
     print(*command)
@@ -98,11 +99,13 @@ def load_all_results(file_name):
 
     return results
 
-def compute_missing():
+def compute_missing(limits=None):
     results = load_all_results(RESULTS_FILE_NAME)
     
     thread_inputs = []
     for inp in load_all_inputs(INPUT_FILE_NAME):
+        print(inp)
+        if limits is not None: thread_inputs = []
         limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
         run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else None
         inp = inp.split()[0]
@@ -117,7 +120,21 @@ def compute_missing():
                     if MULITHREADING:
                         thread_inputs.append((inp, alg, k, complements, rp))
                     else: run_with_parameters(inp, alg, k, complements, rp)
-    if MULITHREADING:
+        
+        if len(thread_inputs) == 0: continue
+        if limits is not None:
+            if limits[0] == 0: continue
+            print(len(thread_inputs))
+            with ThreadPoolExecutor(max_workers=limits[0]) as exe:
+                futures = [exe.submit(run_with_parameters, *i) for i in reversed(thread_inputs)]
+                wait(futures)
+            
+            limits.pop(0)
+            if len(limits) == 0:
+                limits = None
+                thread_inputs = []
+        
+    if MULITHREADING and limits is None:
         print(len(thread_inputs))
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as exe:
             futures = [exe.submit(run_with_parameters, *i) for i in reversed(thread_inputs)]
@@ -125,4 +142,7 @@ def compute_missing():
     print("Done")
 
 if __name__ == "__main__":
-    compute_missing()
+    limits = None
+    if len(sys.argv) > 1:
+        limits = list(map(int, sys.argv[1:]))
+    compute_missing(limits)
