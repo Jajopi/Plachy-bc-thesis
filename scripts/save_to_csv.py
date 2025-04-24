@@ -4,12 +4,12 @@ from compare import *
 
 CSV_SEPARATOR = ','
 
-def print_to_csv(results_or_resources=True, k=31, complements=True, subsampled=False, pangenomes=False):
+def print_to_csv(results_or_resources=True, k=31, complements=True, subsampled=False, pangenomes=False, path_prefix=""):
     results = load_all_results(RESULTS_FILE_NAME)
 
     if subsampled and k != 31: return
 
-    out_file = "outputs/"
+    out_file = path_prefix + "outputs/"
     out_file += "results-length-runs" if results_or_resources else "results-time-memory"
     if not complements: out_file += "-noncomplement"
     if pangenomes: out_file += "-pan"

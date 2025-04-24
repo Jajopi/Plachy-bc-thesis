@@ -10,6 +10,7 @@ INPUT_DIR = "data"
 INPUT_FILE_NAME = "compare_inputs.txt"
 RESULTS_FILE_NAME = "results.txt"
 LABELS = ["length", "runs", "time", "memory", "objective", "relative"] # mandatory order
+LABELS_COMPRESSIONS = ["gzip", "bzip2", "xz", "zpaq"]
 FIG_DIR = "figures"
 
 KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
@@ -17,7 +18,7 @@ ALG_OLD = "global"
 ALGORITHMS = [ALG_OLD, "loac"] # "csac"
 
 MULITHREADING = True
-MAX_WORKERS = 6
+MAX_WORKERS = 12
 
 def run_command(command):
     print(*command)
@@ -60,12 +61,12 @@ def parse_header(header):
         return (alg, inp, k, c, run_p)
 
 def compute_objective(length, runs):
-    return int(length + runs * (1 + math.log2(length / runs)))
+    return 2 * int(length + runs * (1 + math.log2(length / runs)))
 
 def parse_data(input):
     data = dict()
-    for d, l in zip(map(lambda x: int(x.split('.')[0]), input.split()),
-                    LABELS[:4]):
+    for d, l in zip(map(lambda x: int(x.split('.')[0]), (input + " 1 1 1 1").split()),
+                    LABELS[:4] + LABELS_COMPRESSIONS):
         data[l] = d
     data[LABELS[4]] = compute_objective(data[LABELS[0]], data[LABELS[1]])
     return data
@@ -86,7 +87,7 @@ def load_all_results(file_name):
         key = parse_header(header)
         results[key] = parse_data(values)
 
-    for result in data: # compute relative objective function results
+    for result in data: # compute relative objective function results and relative compressions
         header, values = result.split(":=")
         key = parse_header(header)
         alg, inp, k, c, rp = key
@@ -96,6 +97,21 @@ def load_all_results(file_name):
             if (ALG_OLD, inp, k, c, None) in results.keys():
                 results[key][LABELS[5]] = results[key][LABELS[4]] / results[(ALG_OLD, inp, k, c, None)][LABELS[4]]
             else: results[key][LABELS[5]] = 0
+        
+        for label in LABELS_COMPRESSIONS:
+            if alg != ALG_OLD:
+                if (ALG_OLD, inp, k, c, None) in results.keys():
+                    results[key][label] = results[key][label] / results[(ALG_OLD, inp, k, c, None)][label]
+                else: results[key][label] = 1
+        
+    # for result in data: # set realtive compressions of ALG_OLD to 1
+    #     header, values = result.split(":=")
+    #     key = parse_header(header)
+    #     alg, inp, k, c, rp = key
+        
+    #     for label in LABELS_COMPRESSIONS:
+    #         if alg == ALG_OLD:
+    #             results[(ALG_OLD, inp, k, c, None)][label] = 1
 
     return results
 
@@ -126,7 +142,7 @@ def compute_missing(limits=None):
             if limits[0] == 0: continue
             print(len(thread_inputs))
             with ThreadPoolExecutor(max_workers=limits[0]) as exe:
-                futures = [exe.submit(run_with_parameters, *i) for i in reversed(thread_inputs)]
+                futures = [exe.submit(run_with_parameters, *i) for i in thread_inputs]
                 wait(futures)
             
             limits.pop(0)
