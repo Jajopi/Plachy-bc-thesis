@@ -54,7 +54,7 @@ tail -n 1 "$TEMP_DIR"/ms.txt > "$TEMP_DIR"/seq.txt
 gzip -9 -kq "$TEMP_DIR"/seq.txt; C_GZIP="$(cat "$TEMP_DIR"/seq.txt.gz | wc -m)"
 bzip2 -9 -kq "$TEMP_DIR"/seq.txt; C_BZIP2="$(cat "$TEMP_DIR"/seq.txt.bz2 | wc -m)"
 xz -9 -kq -z "$TEMP_DIR"/seq.txt; C_XZ="$(cat "$TEMP_DIR"/seq.txt.xz | wc -m)"
-lrzip -Q --zpaq "$TEMP_DIR"/seq.txt; C_ZPAQ="$(cat "$TEMP_DIR"/seq.txt.lrz | wc -m)"
+lrzip -Q --zpaq -L8 "$TEMP_DIR"/seq.txt; C_ZPAQ="$(cat "$TEMP_DIR"/seq.txt.lrz | wc -m)"
 
 COMPRESSIBILITY="$(printf "%d\t%d\t%d\t%d" "$C_GZIP" "$C_BZIP2" "$C_XZ" "$C_ZPAQ")"
 
