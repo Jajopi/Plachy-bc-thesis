@@ -10,15 +10,18 @@ INPUT_DIR = "data"
 INPUT_FILE_NAME = "compare_inputs.txt"
 RESULTS_FILE_NAME = "results.txt"
 LABELS = ["length", "runs", "time", "memory", "objective", "relative"] # mandatory order
-LABELS_COMPRESSIONS = ["gzip", "bzip2", "xz", "zpaq"]
+LABELS_COMPRESSIONS = ["gzip -9", "bzip2 -9", "xz -9", "lrzip --zpaq -L9", "zstd -22"]
 FIG_DIR = "figures"
 
 KS = [23, 31, 47, 63, 95, 127] # 15 was excluded
 ALG_OLD = "global"
-ALGORITHMS = [ALG_OLD, "loac"] # "csac"
+ALGORITHMS = [ALG_OLD, "loac"]
+ALG_MATCHTIGS = "matchtigs"
+ALG_COUNTING = "counting"
+# ALGORITHMS = [ALG_OLD, "loac", ALG_MATCHTIGS]
 
 MULITHREADING = True
-MAX_WORKERS = 6
+MAX_WORKERS = 8
 
 def run_command(command):
     print(*command)
@@ -31,7 +34,7 @@ def run_with_parameters(input_name, algorithm, k, complements=False, run_penalty
                  "-k", str(k),
                  "-a", algorithm,
                  "-c" if complements else "  ",
-                 f"--run-penalty {run_penalty}" if algorithm != ALG_OLD and run_penalty is not None else ""
+                 f"--run-penalty {run_penalty}" if algorithm != ALG_OLD and algorithm != ALG_MATCHTIGS and algorithm != ALG_COUNTING and run_penalty is not None else ""
                 ])
 
 def load_all_inputs(file_name):
@@ -98,11 +101,11 @@ def load_all_results(file_name):
                 results[key][LABELS[5]] = results[key][LABELS[4]] / results[(ALG_OLD, inp, k, c, None)][LABELS[4]]
             else: results[key][LABELS[5]] = 0
         
-        for label in LABELS_COMPRESSIONS:
-            if alg != ALG_OLD:
-                if (ALG_OLD, inp, k, c, None) in results.keys():
-                    results[key][label] = results[key][label] / results[(ALG_OLD, inp, k, c, None)][label]
-                else: results[key][label] = 1
+        # for label in LABELS_COMPRESSIONS:
+        #     if alg != ALG_OLD:
+        #         if (ALG_OLD, inp, k, c, None) in results.keys():
+        #             results[key][label] = results[key][label] / results[(ALG_OLD, inp, k, c, None)][label]
+        #         else: results[key][label] = 1
         
     # for result in data: # set realtive compressions of ALG_OLD to 1
     #     header, values = result.split(":=")
@@ -119,14 +122,14 @@ def compute_missing(limits=None):
     results = load_all_results(RESULTS_FILE_NAME)
     
     thread_inputs = []
-    for inp in load_all_inputs(INPUT_FILE_NAME):
+    for inp in reversed(load_all_inputs(INPUT_FILE_NAME)):
         print(inp)
         if limits is not None: thread_inputs = []
         limit = int(inp.split()[1]) if len(inp.split()) > 1 else 128
         run_penalty = int(inp.split()[2]) if len(inp.split()) > 2 else None
         inp = inp.split()[0]
-        for alg in (reversed(ALGORITHMS) if MULITHREADING else ALGORITHMS):
-            rp = run_penalty if alg != ALG_OLD else None
+        for alg in (reversed(ALGORITHMS + [ALG_COUNTING]) if MULITHREADING else ALGORITHMS):
+            rp = run_penalty if alg != ALG_OLD and alg != ALG_MATCHTIGS and alg != ALG_COUNTING else None
             for k in KS:
                 if k >= limit: continue
                 for complements in (True, ):
@@ -139,13 +142,13 @@ def compute_missing(limits=None):
         
         if len(thread_inputs) == 0: continue
         if limits is not None:
-            if limits[0] == 0: continue
+            if limits[-1] == 0: continue
             print(len(thread_inputs))
-            with ThreadPoolExecutor(max_workers=limits[0]) as exe:
-                futures = [exe.submit(run_with_parameters, *i) for i in thread_inputs]
+            with ThreadPoolExecutor(max_workers=limits[-1]) as exe:
+                futures = [exe.submit(run_with_parameters, *i) for i in reversed(thread_inputs)]
                 wait(futures)
             
-            limits.pop(0)
+            limits.pop()
             if len(limits) == 0:
                 limits = None
                 thread_inputs = []
@@ -153,7 +156,7 @@ def compute_missing(limits=None):
     if MULITHREADING and limits is None:
         print(len(thread_inputs))
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as exe:
-            futures = [exe.submit(run_with_parameters, *i) for i in reversed(thread_inputs)]
+            futures = [exe.submit(run_with_parameters, *i) for i in thread_inputs]
             wait(futures)
     print("Done")
 

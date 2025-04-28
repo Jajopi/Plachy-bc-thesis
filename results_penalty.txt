@@ -1212,3 +1212,15 @@
 2025-04-23:13:46:34	-p data/athaliana.fna -k 23 -a loac -c --run-penalty 0	:= 111997684	115205	347.75	13426256
 2025-04-23:14:40:44	-p data/human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa -k 23 -a loac -c --run-penalty 0	:= 408999139	4901799	3577.25	35693548
 2025-04-23:17:09:18	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 23 -a loac -c --run-penalty 0	:= 439531440	4574053	12478.40	37554328
+2025-04-27:17:03:12	-p data/sars_cov_2.fna -k 31 -a loac -c --run-penalty 0	:= 29902	2	0.03	7692		
+2025-04-27:17:03:17	-p data/spneumoniae.fa -k 31 -a loac -c --run-penalty 0	:= 2161316	412	4.85	271540		
+2025-04-27:17:03:21	-p data/ecoli.fna -k 31 -a loac -c --run-penalty 0	:= 4565537	299	9.15	538008		
+2025-04-27:17:03:37	-p data/ngono_pangenome_RASE_db.unitigs_k128.fa -k 31 -a loac -c --run-penalty 0	:= 5191103	37948	25.13	479524		
+2025-04-27:17:03:43	-p data/scerevisiae.fna -k 31 -a loac -c --run-penalty 0	:= 11625700	1896	30.14	1206448		
+2025-04-27:17:04:26	-p data/spneumo_pangenome_RASE_db.unitigs_k128.fa -k 31 -a loac -c --run-penalty 0	:= 11969704	82801	73.64	1089996		
+2025-04-27:17:05:43	-p data/sars-cov-2_pangenome_gisaid.unitigs_k128.fa -k 31 -a loac -c --run-penalty 0	:= 17160796	289396	150.06	1314392		
+2025-04-27:17:07:56	-p data/celegans.fa -k 31 -a loac -c --run-penalty 0	:= 95379577	42152	277.50	9484464		
+2025-04-27:17:08:26	-p data/athaliana.fna -k 31 -a loac -c --run-penalty 0	:= 113949166	57451	306.12	13562028		
+2025-04-27:17:08:51	-p data/dmelanogaster.fna -k 31 -a loac -c --run-penalty 0	:= 124007978	53115	330.13	14214368		
+2025-04-27:18:18:12	-p data/human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa -k 31 -a loac -c --run-penalty 0	:= 445120439	5073081	4469.91	35839040		
+2025-04-27:20:04:33	-p data/ecoli_pangenome_661k_HQ.unitigs_k128.fa -k 31 -a loac -c --run-penalty 0	:= 556326599	4037482	10830.74	55463476		

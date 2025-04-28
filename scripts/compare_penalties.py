@@ -26,7 +26,7 @@ def compute_missing(limits=None):
         print(inp)
         for alg in ALGORITHMS:
             for k in KS:
-                RUN_PENALTIES = list(range(KS[0]))
+                RUN_PENALTIES = list(range(k))
                 for run_penalty in RUN_PENALTIES:
                     rp = run_penalty if alg != ALG_OLD else None
                     for complements in (True, ):
