@@ -183,3 +183,4 @@
 2025-04-28:07:54:16	-p data/human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa -k 31 -a counting -c 	:= 354803597
 2025-04-28:08:00:42	-p data/human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa -k 23 -a counting -c 	:= 353276170
 2025-04-28:08:05:14	-p data/human_microbiome_illumina_srs063932.unitigs_minfreq2_k32.fa -k 31 -a loac -c --run-penalty 7	:= 445667529	4882756	3946.22	35936856	142931895 132980905 123345096 116080648 128853789	
+2025-04-28:19:48:15	-p data/sars-cov-2_pangenome_gisaid.unitigs_k128.fa -k 127 -a loac -c --run-penalty 8	:= 118051932	284775	39059.61	18934384	27124430 16253786 6709700 8172268 6373227	
