@@ -30,6 +30,8 @@ Internal shellscript for usage of this script is `measure_run.sh`.
 Searching for the optimal run penalties in the file `compare_penalties.py`
 works similarly as `compare.py`. Both can be visualized using the jupyter notebook.
 
+`save_to_csv.py` is used to create csv tables to be displayed in the thesis.
+
 `copy_to_kam.sh` is used to copy files to *kamenac* and invoke recompilation
 of current version of 🐫.
 You probably won't use it.
@@ -39,7 +41,7 @@ You can provide any number of arguments, then those files are copied instead.
 If you provide at least one argument, the recompilation is not invoked.
 If the first argument is `-`, default files are copied without recompilation.
 
-# README from the forked versio of [KmerCamel🐫](https://github.com/OndrejSladky/kmercamel)
+# README from the forked version of [KmerCamel🐫](https://github.com/OndrejSladky/kmercamel)
 [![KmerCamel test](https://github.com/OndrejSladky/kmercamel/actions/workflows/ci.yml/badge.svg)](https://github.com/OndrejSladky/kmercamel/actions/)
 
 <!-- vim-markdown-toc GFM -->
